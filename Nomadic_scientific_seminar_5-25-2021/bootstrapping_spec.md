@@ -12,9 +12,25 @@ and receives three types of messages:
 - `Block_header` - node's respond with the requested header or do not respond
 - `Operation` - node's respond with the requested operation or do not respond
 
-## Phase diagram for bootstrapping nodes
+## Phase diagram
 
 [![](./phase_diagram.dot.svg)](./phase_diagram.dot.svg)
+
+## Assumptions/Simplifications
+
+- all messages are for the same `chain_id`
+- all headers are for the same `proto_level`
+- no `timestamp`s
+- only three message types:
+  - `Get_current_branch`/`Current_branch`
+  - `Get_block_headers`/`Block_header`
+  - `Get_operations`/`Operation`
+- i.e. no `Current_head` or mempool
+- bootstrapping nodes have the ability to request a specific history sample, by levels
+- bootstrapping nodes only communicate with established nodes
+- node's are blacklisted when we timeout while communicating with them, no matter the cause
+- lengths of all chains are bounded
+- number of operations per block is bounded
 
 ## Constants/Parameters
 
@@ -91,9 +107,7 @@ Each good node keeps a collection of each type of data sent and received:
 - `recv_get_header`
 - `recv_get_ops`
 
-## Actions
-
-### Searching for major header
+### Searching for major branch
 
 The bootstrapping node has sufficiently many connections
 
@@ -106,7 +120,7 @@ The bootstrapping node has sufficiently many connections
   - not requesting operations
   - not applying blocks 
 
-### Validating a major suffix
+### Validating a major branch
 
 The bootstrapping node has seen majority peer support for a header
 
@@ -152,8 +166,14 @@ If a new major header (with higher fitness) is found during this phase:
 
 ### Safety
 
-- bootstrapping connections `MIN_PEERS <= Cardinality(connections[bn]) <= MAX_PEERS`
-- 
+- bootstrapping connections
+
+```
+/\ Cardinality(connections[bn]) >= MIN_PEERS
+/\ Cardinality(connections[bn]) <= MAX_PEERS
+```
+
+- hello
 
 ### Liveness
 
