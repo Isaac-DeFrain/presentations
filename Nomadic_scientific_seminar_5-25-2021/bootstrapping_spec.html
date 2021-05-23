@@ -301,54 +301,91 @@ pre[data-line] .line-highlight[data-end]:after {
 <h2 class="mume-header" id="constantsparameters">Constants/Parameters</h2>
 
 <ul>
-<li><code>BAD_NODES</code> - byzantine nodes</li>
-<li><code>GOOD_NODES</code> - nodes who follow the protocol</li>
-<li><code>BAD_BOOTSTRAPPING</code> - byzantine bootstrapping nodes</li>
-<li><code>GOOD_BOOTSTRAPPING</code> - bootstrapping nodes who follow the protocol</li>
-<li><code>MIN_PEERS</code> - minimum number of peers</li>
-<li><code>MAX_PEERS</code> - maximum number of peers</li>
-<li><code>MAX_LEVEL</code> - maximum level of a block</li>
-<li><code>MAX_OPS</code> - maximum number of operations per block</li>
-<li><code>CURRENT_HEAD</code> - each good node&apos;s current head</li>
-<li><code>BLOCKS</code> - each good node&apos;s blocks</li>
-<li><code>VALIDATOR</code> - Blocks -&gt; { &quot;known_valid&quot;, &quot;known_invalid&quot;, &quot;unknown&quot; }</li>
-<li><code>SAMPLES</code> - GOOD_NODES \X Bootstrapping_nodes -&gt; Seq_n(Levels)</li>
-<li><code>HASH_BLOCK_MAP</code> - BlockHashes -&gt; Headers</li>
+<li>
+<p><code>BAD_NODES</code> - byzantine nodes</p>
+</li>
+<li>
+<p><code>GOOD_NODES</code> - nodes who follow the protocol</p>
+</li>
+<li>
+<p><code>BAD_BOOTSTRAPPING</code> - byzantine bootstrapping nodes</p>
+</li>
+<li>
+<p><code>GOOD_BOOTSTRAPPING</code> - bootstrapping nodes who follow the protocol</p>
+</li>
+<li>
+<p><code>MIN_PEERS</code> - minimum number of peers</p>
+</li>
+<li>
+<p><code>MAX_PEERS</code> - maximum number of peers</p>
+</li>
+<li>
+<p><code>MAX_LEVEL</code> - maximum level of a block</p>
+</li>
+<li>
+<p><code>MAX_OPS</code> - maximum number of operations per block</p>
+</li>
+<li>
+<p><code>CURRENT_HEAD</code> - each good node&apos;s current head</p>
+</li>
+<li>
+<p><code>BLOCKS</code> - each good node&apos;s blocks</p>
+</li>
+<li>
+<p><code>VALIDATOR</code> - Blocks -&gt; { &quot;known_valid&quot;, &quot;known_invalid&quot;, &quot;unknown&quot; }</p>
+</li>
+<li>
+<p><code>SAMPLES</code> - GOOD_NODES \X Bootstrapping_nodes -&gt; Seq_n(Levels)</p>
+</li>
+<li>
+<p><code>HASH_BLOCK_MAP</code> - BlockHashes -&gt; Headers</p>
+</li>
 </ul>
 <h2 class="mume-header" id="variables">Variables</h2>
 
 <h3 class="mume-header" id="bootstrapping">Bootstrapping</h3>
 
+<ul>
+<li><code>b_blacklist</code> - set of <code>bn</code>&apos;s blacklisted peers</li>
+<li><code>b_messages</code> - set of <code>bn</code>&apos;s messages</li>
+</ul>
 <h4 class="mume-header" id="local">Local</h4>
 
-<p>Each bootstrapping node [bn] has:</p>
+<p>Each bootstrapping node <code>bn</code> has:</p>
 <ul>
-<li><code>phase</code> - the state of [bn]</li>
-<li><code>connections</code> - set of nodes with whom [bn] may exchange messages</li>
+<li><code>phase</code> - the state of <code>bn</code>, governs the actions taken by <code>bn</code></li>
+<li><code>connections</code> - set of nodes with whom <code>bn</code> may exchange messages</li>
 <li><code>current_head</code> - current head (initially <code>genesis</code> header)</li>
-<li><code>level_to_validate</code> - ???</li>
-<li><code>validated_blocks</code> - set of validated blocks to add to [bn]&apos;s chain</li>
-<li><code>header_pipe</code> -</li>
-<li><code>operation_pipe</code> -</li>
-</ul>
-<h4 class="mume-header" id="knowledge">Knowledge</h4>
-
-<ul>
-<li><code>chain_lengths</code> - length of each connection&apos;s chains</li>
-<li><code>fitness_witnessed</code> -</li>
-<li><code>fittest_head</code> -</li>
+<li><code>fittest_head</code> - the fittest header of each of <code>bn</code>&apos;s peers</li>
+<li><code>header_pipe</code> - queue of validated headers to form blocks</li>
+<li><code>operation_pipe</code> - queue of validated operations to form blocks</li>
+<li><code>validated_blocks</code> - set of validated blocks to add to <code>bn</code>&apos;s chain</li>
 </ul>
 <h4 class="mume-header" id="history">History</h4>
 
-<p>Each bootstrapping node [bn] has the following history variables:</p>
+<p>Each bootstrapping node <code>bn</code> has the following history variables:</p>
 <ul>
-<li><code>phase_trace</code> - trace of each phase experienced</li>
-<li><code>sent_get_branch</code> - set of nodes from whom [bn] has requested current branch</li>
-<li><code>sent_get_headers</code> -</li>
-<li><code>sent_getops</code> -</li>
-<li><code>recv_branch</code> -</li>
-<li><code>recv_header</code> -</li>
-<li><code>recv_operation</code> -</li>
+<li>
+<p><code>phase_trace</code> - trace of each phase experienced</p>
+</li>
+<li>
+<p><code>sent_get_branch</code> - set of nodes from whom <code>bn</code> has requested a current branch</p>
+</li>
+<li>
+<p><code>sent_get_headers</code> - set of requested block hashes from each of <code>bn</code>&apos;s peers</p>
+</li>
+<li>
+<p><code>sent_get_ops</code> - set of requested operation hashes from each of <code>bn</code>&apos;s peers</p>
+</li>
+<li>
+<p><code>recv_branch</code> - set of samples (block hashes) received from each of <code>bn</code>&apos;s peers</p>
+</li>
+<li>
+<p><code>recv_header</code> - set of block headers received from each of <code>bn</code>&apos;s peers</p>
+</li>
+<li>
+<p><code>recv_operation</code> -</p>
+</li>
 </ul>
 <h4 class="mume-header" id="memoryspace">Memory/Space</h4>
 
@@ -457,21 +494,117 @@ pre[data-line] .line-highlight[data-end]:after {
 <ul>
 <li>bootstrapping connections</li>
 </ul>
-<pre data-role="codeBlock" data-info class="language-"><code>MIN_PEERS &lt;= Cardinality(connections[bn]) &lt;= MAX_PEERS
+<pre data-role="codeBlock" data-info class="language-"><code>\A bn \in GOOD_BOOTSTRAPPING :
+  /\ num_peers(bn) &lt;= MAX_PEERS
+  /\ b_blacklist[bn] \cap connections[bn] = {}
 </code></pre><ul>
-<li>hello</li>
+<li>bootstrapping messages</li>
 </ul>
-<h3 class="mume-header" id="liveness">Liveness</h3>
+<pre data-role="codeBlock" data-info class="language-"><code>\A bn \in GOOD_BOOTSTRAPPING :
+  { msg.from : msg \in b_messages } \subseteq connections[bn]
+</code></pre><ul>
+<li>phase consistency</li>
+</ul>
+<pre data-role="codeBlock" data-info class="language-"><code>\A bn \in GOOD_BOOTSTRAPPING :
+  LET p == phase[bn] IN
+  /\ p \notin Phase_init =&gt; num_peers(bn) &gt;= MIN_PEERS
+  /\ \E l \in Levels :
+      p = major_phase(1..l) &lt;=&gt; l = highest_major_level(bn)
+  /\ \E l \in Levels :
+      p = apply_phase(1..l) &lt;=&gt; l = highest_major_level(bn)
+</code></pre><ul>
+<li>current_head consistency</li>
+</ul>
+<pre data-role="codeBlock" data-info class="language-"><code>\A bn \in GOOD_BOOTSTRAPPING :
+  /\ 2 * Cardinality({ n \in good_conns(bn) : current_head[bn] \in good_headers(n) }) &gt; Cardinality(good_conns(bn))
+  /\ highest_major_level(bn) = 0 =&gt; current_head[bn] = gen_header
+</code></pre><h3 class="mume-header" id="liveness">Liveness</h3>
 
 <ul>
-<li></li>
+<li>fitness is monotonic increasing</li>
 </ul>
-<h2 class="mume-header" id="performance">Performance</h2>
+<pre data-role="codeBlock" data-info class="language-"><code>\A bn \in GOOD_BOOTSTRAPPING :
+  LET old_head  == current_head[bn]
+      new_head  == current_head&apos;[bn]
+  IN
+  [][ old_head /= new_head =&gt; old_head.fitness &lt; new_head.fitness ]_vars
+</code></pre><ul>
+<li>allowable transitions</li>
+</ul>
+<pre data-role="codeBlock" data-info class="language-"><code>\* Init -&gt; Search
+\A bn \in GOOD_BOOTSTRAPPING :
+  LET old_phase == phase[bn]
+      new_phase == phase&apos;[bn]
+  IN
+  [][ /\ old_phase \in Phase_init
+      /\ old_phase /= new_phase
+      =&gt;
+      /\ new_phase \in Phase_search
+      /\ connections[bn] = {}
+      /\ connections&apos;[bn] /= {} ]_vars
+</code></pre><pre data-role="codeBlock" data-info class="language-"><code>\* Search -&gt; Major
+\A bn \in GOOD_BOOTSTRAPPING :
+  LET old_phase == phase[bn]
+      old_head  == current_head[bn]
+      new_phase == phase&apos;[bn]
+      new_head  == current_head&apos;[bn]
+  IN
+  [][ /\ old_phase \in Phase_search
+      /\ old_phase /= new_phase
+      =&gt;
+      /\ new_phase \in Phase_major
+      /\ old_head.fitness &lt; new_head.fitness
+      /\ old_head.level &lt; new_head.level ]_vars
+</code></pre><pre data-role="codeBlock" data-info class="language-"><code>\* Major -&gt; { Major, Apply }
+\A bn \in GOOD_BOOTSTRAPPING :
+  LET old_phase == phase[bn]
+      old_head  == current_head[bn]
+      new_phase == phase&apos;[bn]
+      new_head  == current_head&apos;[bn]
+  IN
+  \* Major -&gt; Apply
+  /\ [][ (old_phase \in Phase_major) =&gt; new_phase \in Phase_major \cup Phase_apply ]_vars
+  \* Major -&gt; Major
+  /\ [][ \E l \in Levels :
+          /\ old_phase = major_phase(1..l)
+          /\ old_head.level = l
+          /\ new_phase \in Phase_major
+          =&gt;
+          \E k \in Levels :
+              /\ k &gt; l
+              /\ new_head.level = k
+              /\ new_phase = major_phase(1..k) ]_vars
+</code></pre><pre data-role="codeBlock" data-info class="language-"><code>\* Apply -&gt; { Major, Search }
+\A bn \in GOOD_BOOTSTRAPPING :
+  LET old_phase == phase[bn]
+      old_head  == current_head[bn]
+      new_phase == phase&apos;[bn]
+      new_head  == current_head&apos;[bn]
+  IN
+  \* Apply -&gt; Search
+  /\ [][ /\ old_phase \in Phase_apply
+         /\ new_phase /= new_phase
+          =&gt; new_phase \in Phase_search \cup Phase_major ]_vars
+  \* Apply -&gt; Major
+  /\ [][ /\ old_phase \in Phase_apply
+         /\ old_phase \in Phase_major
+          =&gt;
+          /\ old_head.fitness &lt; new_head.fitness
+          /\ old_head.level &lt; new_head.level ]_vars
+</code></pre><ul>
+<li>if progress can be made, it will be</li>
+</ul>
+<pre data-role="codeBlock" data-info class="language-"><code>\A bn \in GOOD_BOOTSTRAPPING :
+  LET curr_hd == current_head[bn] IN
+  \E hd \in major_headers(bn) :
+      &lt;&gt;( \/ hd = curr_hd
+          \/ hd.fitness &lt; curr_hd.fitness )
+</code></pre><h2 class="mume-header" id="performance">Performance</h2>
 
 <h3 class="mume-header" id="memory">Memory</h3>
 
 <ul>
-<li>will ultimately include memory usage estimates in</li>
+<li>will ultimately include memory usage estimates in specification and utilize model checking to improve performance</li>
 </ul>
 
       </div>

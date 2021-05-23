@@ -42,57 +42,55 @@ and receives three types of messages:
 - `MAX_PEERS` - maximum number of peers
 - `MAX_LEVEL` - maximum level of a block
 - `MAX_OPS` - maximum number of operations per block
+
 - `CURRENT_HEAD` - each good node's current head
 - `BLOCKS` - each good node's blocks
 - `VALIDATOR` - Blocks -> { "known_valid", "known_invalid", "unknown" }
-- `SAMPLES` - GOOD_NODES \X Bootstrapping_nodes -> Seq_n(Levels)
+- `SAMPLES` - GOOD_NODES * Bootstrapping_nodes -> Seq_n(Levels)
 - `HASH_BLOCK_MAP` - BlockHashes -> Headers
 
 ## Variables
 
 ### Bootstrapping
 
+- `b_blacklist` - set of `bn`'s blacklisted peers
+- `b_messages` - set of `bn`'s messages
+
 #### Local
 
-Each bootstrapping node [bn] has:
+Each bootstrapping node `bn` has:
 
-- `phase` - the state of [bn]
-- `connections` - set of nodes with whom [bn] may exchange messages
+- `phase` - the state of `bn`, governs the actions taken by `bn`
+- `connections` - set of nodes with whom `bn` may exchange messages
 - `current_head` - current head (initially `genesis` header)
-- `level_to_validate` - ???
-- `validated_blocks` - set of validated blocks to add to [bn]'s chain
-- `header_pipe` - 
-- `operation_pipe` - 
-
-
-#### Knowledge
-
-- `chain_lengths` - length of each connection's chains
-- `fitness_witnessed` - 
-- `fittest_head` - 
+- `fittest_head` - the fittest header of each of `bn`'s peers
+- `header_pipe` - queue of validated headers to form blocks
+- `operation_pipe` - queue of validated operations to form blocks
+- `validated_blocks` - set of validated blocks to add to `bn`'s chain
 
 #### History
 
-Each bootstrapping node [bn] has the following history variables:
+Each bootstrapping node `bn` has the following history variables:
 
 - `phase_trace` - trace of each phase experienced
-- `sent_get_branch` - set of nodes from whom [bn] has requested current branch
-- `sent_get_headers` - 
-- `sent_getops` - 
-- `recv_branch` - 
-- `recv_header` - 
-- `recv_operation` - 
+
+- `sent_get_branch` - set of nodes from whom `bn` has requested a current branch
+- `sent_get_headers` - set of requested block hashes from each of `bn`'s peers
+- `sent_get_ops` - set of requested operation hashes from each of `bn`'s peers
+- `recv_branch` - set of samples (block hashes) received from each of `bn`'s peers
+- `recv_header` - set of block headers received from each of `bn`'s peers
+- `recv_operation` - set of pairs of block hashes and operations received from each of `bn`'s peers
 
 #### Memory/Space
 
-- `mem_size`
+- `mem_size` - estimated amount of memory used by `bn`
 
 ### Node 
 
 Each good node has:
 
-- `n_blacklist` - 
-- `n_messages` - 
+- `n_blacklist` - set of blacklisted peers
+- `n_messages` - set of messages
 - `serving_headers` - headers which have been requested by bottstrapping nodes
 - `serving_ops` - operations which have been requested by bootstrapping nodes
 
@@ -100,12 +98,12 @@ Each good node has:
 
 Each good node keeps a collection of each type of data sent and received:
 
-- `sent_branch`
-- `sent_headers`
-- `sent_ops`
-- `recv_get_branch`
-- `recv_get_header`
-- `recv_get_ops`
+- `sent_branch` - set of peers to whom they have sent a `Current_branch` message
+- `sent_headers` - set of headers sent to each peer who has requested a `Block_header`
+- `sent_ops` - set of operations sent to each peer who has requested an `Operation`
+- `recv_get_branch` - set of peers who have requested the current branch
+- `recv_get_headers` - set of block hashes each peer has requested the corresponding header for
+- `recv_get_ops` - set of operation hashes each peer has requested the corresponding operation for
 
 ### Searching for major branch
 
@@ -169,19 +167,136 @@ If a new major header (with higher fitness) is found during this phase:
 - bootstrapping connections
 
 ```
-/\ Cardinality(connections[bn]) >= MIN_PEERS
-/\ Cardinality(connections[bn]) <= MAX_PEERS
+\A bn \in GOOD_BOOTSTRAPPING :
+  /\ num_peers(bn) <= MAX_PEERS
+  /\ b_blacklist[bn] \cap connections[bn] = {}
 ```
 
-- hello
+- bootstrapping messages
+
+```
+\A bn \in GOOD_BOOTSTRAPPING :
+  { msg.from : msg \in b_messages } \subseteq connections[bn]
+```
+
+- phase consistency
+
+```
+\A bn \in GOOD_BOOTSTRAPPING :
+  LET p == phase[bn] IN
+  /\ p \notin Phase_init => num_peers(bn) >= MIN_PEERS
+  /\ \E l \in Levels :
+      p = major_phase(1..l) <=> l = highest_major_level(bn)
+  /\ \E l \in Levels :
+      p = apply_phase(1..l) <=> l = highest_major_level(bn)
+```
+
+- current_head consistency
+
+```
+\A bn \in GOOD_BOOTSTRAPPING :
+  /\ 2 * Cardinality({ n \in good_conns(bn) : current_head[bn] \in good_headers(n) }) > Cardinality(good_conns(bn))
+  /\ highest_major_level(bn) = 0 => current_head[bn] = gen_header
+```
 
 ### Liveness
 
-- 
+- fitness is monotonic increasing
 
+```
+\A bn \in GOOD_BOOTSTRAPPING :
+  LET old_head  == current_head[bn]
+      new_head  == current_head'[bn]
+  IN
+  [][ old_head /= new_head => old_head.fitness < new_head.fitness ]_vars
+```
+
+- allowable transitions
+
+```
+\* Init -> Search
+\A bn \in GOOD_BOOTSTRAPPING :
+  LET old_phase == phase[bn]
+      new_phase == phase'[bn]
+  IN
+  [][ /\ old_phase \in Phase_init
+      /\ old_phase /= new_phase
+      =>
+      /\ new_phase \in Phase_search
+      /\ connections[bn] = {}
+      /\ connections'[bn] /= {} ]_vars
+```
+
+```
+\* Search -> Major
+\A bn \in GOOD_BOOTSTRAPPING :
+  LET old_phase == phase[bn]
+      old_head  == current_head[bn]
+      new_phase == phase'[bn]
+      new_head  == current_head'[bn]
+  IN
+  [][ /\ old_phase \in Phase_search
+      /\ old_phase /= new_phase
+      =>
+      /\ new_phase \in Phase_major
+      /\ old_head.fitness < new_head.fitness
+      /\ old_head.level < new_head.level ]_vars
+```
+
+```
+\* Major -> { Major, Apply }
+\A bn \in GOOD_BOOTSTRAPPING :
+  LET old_phase == phase[bn]
+      old_head  == current_head[bn]
+      new_phase == phase'[bn]
+      new_head  == current_head'[bn]
+  IN
+  \* Major -> Apply
+  /\ [][ (old_phase \in Phase_major) => new_phase \in Phase_major \cup Phase_apply ]_vars
+  \* Major -> Major
+  /\ [][ \E l \in Levels :
+          /\ old_phase = major_phase(1..l)
+          /\ old_head.level = l
+          /\ new_phase \in Phase_major
+          =>
+          \E k \in Levels :
+              /\ k > l
+              /\ new_head.level = k
+              /\ new_phase = major_phase(1..k) ]_vars
+```
+
+```
+\* Apply -> { Major, Search }
+\A bn \in GOOD_BOOTSTRAPPING :
+  LET old_phase == phase[bn]
+      old_head  == current_head[bn]
+      new_phase == phase'[bn]
+      new_head  == current_head'[bn]
+  IN
+  \* Apply -> Search
+  /\ [][ /\ old_phase \in Phase_apply
+         /\ new_phase /= new_phase
+          => new_phase \in Phase_search \cup Phase_major ]_vars
+  \* Apply -> Major
+  /\ [][ /\ old_phase \in Phase_apply
+         /\ old_phase \in Phase_major
+          =>
+          /\ old_head.fitness < new_head.fitness
+          /\ old_head.level < new_head.level ]_vars
+```
+
+- if progress can be made, it will be
+
+```
+\A bn \in GOOD_BOOTSTRAPPING :
+  LET curr_hd == current_head[bn] IN
+  \E hd \in major_headers(bn) :
+      <>( \/ hd = curr_hd
+          \/ hd.fitness < curr_hd.fitness )
+```
 
 ## Performance
 
 ### Memory
 
-- will ultimately include memory usage estimates in 
+- will ultimately include memory usage estimates in specification and utilize model checking to improve performance
