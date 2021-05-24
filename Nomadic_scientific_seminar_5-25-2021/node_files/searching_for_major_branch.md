@@ -7,9 +7,9 @@ The bootstrapping node is in the process of locating a major branch. This is the
 - `Get_current_branch`/`Current_branch`
 - `Get_block_header`/`Block_header`
 
-### Requests (Bootstrapping node)
+### Current branch
 
-#### `Get_current_branch`
+- Bootstrapping node requests a `Current_branch`
 
 ```
 SendGetCurrentBranch == \E bn \in GOOD_BOOTSTRAPPING :
@@ -22,22 +22,7 @@ SendGetCurrentBranch == \E bn \in GOOD_BOOTSTRAPPING :
         /\ UNCHANGED <<b_messages, blacklist, node_vars, b_non_branch_vars, recv_branch>>
 ```
 
-#### `Get_block_headers`
-
-```
-SendGetBlockHeaders == \E bn \in GOOD_BOOTSTRAPPING :
-    \E n \in connections[bn], bhs \in NESet_hd(fetched_hashes(bn)) :
-        /\ phase[bn] \in (Phases \ Phase_init)
-        /\ Send_n(n, get_block_headers_msg(bn, bhs))
-        /\ sent_get_headers' = [ sent_get_headers EXCEPT ![bn][n] = @ \cup bhs ]
-        /\ UNCHANGED <<b_messages, blacklist, node_vars, b_non_header_vars, recv_header>>
-```
-
-Bootstrapping node is not requesting operations at this time
-
-### Responses (Peer)
-
-#### `Current_branch`
+- Peer responds with a `Current_head`
 
 ```
 HandleGetCurrentBranch == \E n \in GOOD_NODES :
@@ -53,7 +38,42 @@ HandleGetCurrentBranch == \E n \in GOOD_NODES :
         /\ UNCHANGED <<blacklist, bootstrapping_vars, n_non_branch_vars>>
 ```
 
-#### `Block_header`
+- Bootstrapping node handles a `Current_branch`
+
+```
+HandleCurrentBranch == \E bn \in GOOD_BOOTSTRAPPING :
+    \E msg \in current_branch_msgs(bn) :
+        LET \* @type: NODE;
+            n == msg.from
+            \* @type: Seq(<<LEVEL, BLOCK_HASH>>);
+            hist == msg.locator.history
+            \* @type: HEADER;
+            curr_hd == msg.locator.current_head
+        IN
+        \* non-init phase
+        /\ phase[bn] \in (Phases \ Phase_init)
+        /\ has_requested_branch_from(bn, n)
+        /\ Drop_b(bn, msg)
+        /\ fittest_head' = [ fittest_head EXCEPT ![bn][n] = IF curr_hd.fitness > @.fitness THEN curr_hd ELSE @ ]
+        /\ recv_header'  = [ recv_header  EXCEPT ![bn][n] = @ \cup {curr_hd} ]
+        /\ recv_branch'  = [ recv_branch  EXCEPT ![bn][n] = @ \cup ToSet(hist) ]
+        /\ UNCHANGED <<n_messages, blacklist, node_vars, connections, current_head, pipe_vars, b_sent_vars, recv_header, recv_operation>>
+```
+
+### Block headers
+
+- Bootstrapping node requests a `Block_header`
+
+```
+SendGetBlockHeaders == \E bn \in GOOD_BOOTSTRAPPING :
+    \E n \in connections[bn], bhs \in NESet_hd(fetched_hashes(bn)) :
+        /\ phase[bn] \in (Phases \ Phase_init)
+        /\ Send_n(n, get_block_headers_msg(bn, bhs))
+        /\ sent_get_headers' = [ sent_get_headers EXCEPT ![bn][n] = @ \cup bhs ]
+        /\ UNCHANGED <<b_messages, blacklist, node_vars, b_non_header_vars, recv_header>>
+```
+
+- Peer responds with a `Block_header`
 
 ```
 HandleGetBlockHeaders == \E n \in GOOD_NODES :
@@ -67,12 +87,19 @@ HandleGetBlockHeaders == \E n \in GOOD_NODES :
         /\ UNCHANGED <<b_messages, blacklist, bootstrapping_vars, n_non_serving_vars, serving_ops>>
 ```
 
-Operations are not being requested
-
-## Phase transitions
-
-Once a major branch is dicovered, the bootstrapping node proceeds to the `validation` phase
+- Bootstrapping node handles a `Block_header`
 
 ```
-
+HandleBlockHeader == \E bn \in GOOD_BOOTSTRAPPING :
+    \E msg \in block_header_msgs(bn) :
+        LET n  == msg.from
+            hd == msg.header
+        IN
+        /\ hash(hd) \in sent_get_headers[bn][n]
+        /\ hd \notin fetched_headers(bn)
+        /\ Drop_b(bn, msg)
+        /\ recv_header' = [ recv_header EXCEPT ![bn][n] = @ \cup {hd} ]
+        /\ UNCHANGED <<n_messages, blacklist, node_vars, b_non_recv_vars, recv_branch, recv_operation>>
 ```
+
+Bootstrapping node is not requesting operations and should not receive any operations at this time

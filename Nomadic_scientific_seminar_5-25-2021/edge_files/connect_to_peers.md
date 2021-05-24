@@ -1,7 +1,8 @@
 # Connect to peers
 
-This is when the bootstrapping nodes in this spec get their connections.
-## InitialConnections
+In the initial state, bootstrapping nodes do not have peers and thus cannot make any requests. Once they obtain sufficiently many peers, they move to the `search` phase and start requesting current branches from their peers.
+
+## Init -> Search
 
 ```
 InitConnections == \E bn \in Bootstrapping_nodes :

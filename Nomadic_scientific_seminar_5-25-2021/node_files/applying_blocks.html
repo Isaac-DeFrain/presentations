@@ -1,5 +1,5 @@
 <!DOCTYPE html><html><head>
-      <title>intro</title>
+      <title>applying_blocks</title>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       
@@ -261,35 +261,58 @@ pre[data-line] .line-highlight[data-end]:after {
     </head>
     <body for="html-export">
       <div class="mume markdown-preview  ">
-      <h1 class="mume-header" id="introduction">Introduction</h1>
+      <h1 class="mume-header" id="applying-blocks">Applying blocks</h1>
 
-<h2 class="mume-header" id="what-is-bootstrapping">What is bootstrapping</h2>
+<p>The bootstrapping node has downloaded and prevalidated all necessary headers and operations. Now they will enqueue the data and form blocks.</p>
+<h2 class="mume-header" id="messages">Messages</h2>
 
-<p>Tezos is a permissionless blockchain, anyone can run a node and attempt to sync with other nodes on the network</p>
-<p>It is also possible for a node to fail, go offline for some time, and then attempt to reconnect to the network</p>
-<p><em>Bootstrapping</em> is the process of a node syncing with the current state of the network</p>
-<p>Nodes start the bootstrapping process after they have established sufficiently many secure connections (via <em>handshaking</em>)</p>
-<h2 class="mume-header" id="why-do-we-care">Why do we care</h2>
-
-<p>Bootstrapping nodes are particularly vulnerable to attacks since they do not have much info about the state</p>
-<p>General goals of TezEdge:</p>
+<p>Bootstrapping nodes in this phase do not send any requests or handle any incoming responses</p>
 <ul>
-<li>simplify complex algorithms</li>
-<li>improve safety/security</li>
-<li>improve performance</li>
+<li>Enqueuing headers</li>
 </ul>
-<p>We use TLA+ to express and verify liveness properties for the TezEdge node</p>
-<p>We also hope to use TLA+ to gain insights into space and memory usage in the future</p>
-<h2 class="mume-header" id="how-we-can-help">How we can help</h2>
-
-<ul>
-<li>formal specifications to clarify, simplify, and codify algorithms</li>
-<li>formulate and verify safety and liveness properties</li>
-<li>model checking (esp using <em>inductive invariants</em>) to exhaustively verify design</li>
+<pre data-role="codeBlock" data-info class="language-"><code>EnqueueHeader == \E bn \in GOOD_BOOTSTRAPPING :
+    LET hds == remaining_headers(bn) IN
+    /\ hds /= {}
+    /\ LET hd  == Min_level_set(hds) IN
+        /\ header_pipe&apos; = [ header_pipe EXCEPT ![bn] = SortSeq(Append(@, hd), min_level_cmp) ]
+        /\ UNCHANGED &lt;&lt;messages, blacklist, node_vars, b_non_pipe_vars, operation_pipe&gt;&gt;
+</code></pre><ul>
+<li>Enqueuing operations</li>
 </ul>
-<h2 class="mume-header" id="bootstrapping-specbootstrapping_spechtml"><a href="./bootstrapping_spec.html">Bootstrapping spec</a></h2>
-
-
+<pre data-role="codeBlock" data-info class="language-"><code>EnqueueOperations == \E bn \in GOOD_BOOTSTRAPPING :
+    LET rem_ops == remaining_operations(bn)
+        h_pipe  == header_pipe[bn]
+    IN
+    /\ h_pipe /= &lt;&lt;&gt;&gt;
+    /\ rem_ops /= {}
+    /\ LET bh  == (Pick(rem_ops)).block_hash
+           ops == rem_ops_block_hash(bn, bh)
+           hd  == Head(h_pipe)
+       IN
+        /\ bh = hash(hd)
+        /\ num_fetched_ops_block_hash(bn, bh) = hd.ops_hash
+        /\ operation_pipe&apos; = [ operation_pipe EXCEPT ![bn] =
+            LET block_hash_at_index(i) == Pick({ op.block_hash : op \in @[i] }) IN
+            IF bh \in { block_hash_at_index(i) : i \in DOMAIN @ } THEN
+                LET i == { ii \in DOMAIN @ : bh \in block_hash_at_index(ii) } IN [ @ EXCEPT ![i] = @ \cup ops ]
+            ELSE Cons(ops, @) ]
+        /\ UNCHANGED &lt;&lt;messages, blacklist, node_vars, b_non_pipe_vars, header_pipe&gt;&gt;
+</code></pre><ul>
+<li>Forming blocks</li>
+</ul>
+<pre data-role="codeBlock" data-info class="language-"><code>ValidateBlock == \E bn \in GOOD_BOOTSTRAPPING :
+    LET hds == header_pipe[bn]
+        ops == operation_pipe[bn]
+    IN
+    /\ phase[bn] \in Phase_apply
+    /\ hds /= &lt;&lt;&gt;&gt;
+    /\ ops /= &lt;&lt;&gt;&gt;
+    /\ LET hd == Head(hds)
+            op == Head(ops)
+        IN
+        /\ op.block_hash = hash(hd)
+        /\ validate_block(bn, hd, ops, 0) \* TODO fix ctx hash
+</code></pre>
       </div>
       
       

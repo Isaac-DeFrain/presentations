@@ -1,5 +1,5 @@
 <!DOCTYPE html><html><head>
-      <title>intro</title>
+      <title>connect_to_peers</title>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       
@@ -261,35 +261,19 @@ pre[data-line] .line-highlight[data-end]:after {
     </head>
     <body for="html-export">
       <div class="mume markdown-preview  ">
-      <h1 class="mume-header" id="introduction">Introduction</h1>
+      <h1 class="mume-header" id="connect-to-peers">Connect to peers</h1>
 
-<h2 class="mume-header" id="what-is-bootstrapping">What is bootstrapping</h2>
+<p>In the initial state, bootstrapping nodes do not have peers and thus cannot make any requests. Once they obtain sufficiently many peers, they move to the <code>search</code> phase and start requesting current branches from their peers.</p>
+<h2 class="mume-header" id="init-search">Init -&gt; Search</h2>
 
-<p>Tezos is a permissionless blockchain, anyone can run a node and attempt to sync with other nodes on the network</p>
-<p>It is also possible for a node to fail, go offline for some time, and then attempt to reconnect to the network</p>
-<p><em>Bootstrapping</em> is the process of a node syncing with the current state of the network</p>
-<p>Nodes start the bootstrapping process after they have established sufficiently many secure connections (via <em>handshaking</em>)</p>
-<h2 class="mume-header" id="why-do-we-care">Why do we care</h2>
-
-<p>Bootstrapping nodes are particularly vulnerable to attacks since they do not have much info about the state</p>
-<p>General goals of TezEdge:</p>
-<ul>
-<li>simplify complex algorithms</li>
-<li>improve safety/security</li>
-<li>improve performance</li>
-</ul>
-<p>We use TLA+ to express and verify liveness properties for the TezEdge node</p>
-<p>We also hope to use TLA+ to gain insights into space and memory usage in the future</p>
-<h2 class="mume-header" id="how-we-can-help">How we can help</h2>
-
-<ul>
-<li>formal specifications to clarify, simplify, and codify algorithms</li>
-<li>formulate and verify safety and liveness properties</li>
-<li>model checking (esp using <em>inductive invariants</em>) to exhaustively verify design</li>
-</ul>
-<h2 class="mume-header" id="bootstrapping-specbootstrapping_spechtml"><a href="./bootstrapping_spec.html">Bootstrapping spec</a></h2>
-
-
+<pre data-role="codeBlock" data-info class="language-"><code>InitConnections == \E bn \in Bootstrapping_nodes :
+  \E ps \in ConnectionSets :
+    /\ phase[bn] \in Phase_init
+    /\ connections[bn] = {}
+    /\ phase&apos; = [ phase EXCEPT ![bn] = search_phase ]
+    /\ connections&apos; = [ connections EXCEPT ![bn] = ps ]
+    /\ UNCHANGED &lt;&lt;blacklist, messages, b_non_conn_vars, node_vars&gt;&gt;
+</code></pre>
       </div>
       
       

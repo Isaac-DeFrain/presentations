@@ -1,5 +1,5 @@
 <!DOCTYPE html><html><head>
-      <title>intro</title>
+      <title>searching_for_major_branch</title>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       
@@ -261,34 +261,99 @@ pre[data-line] .line-highlight[data-end]:after {
     </head>
     <body for="html-export">
       <div class="mume markdown-preview  ">
-      <h1 class="mume-header" id="introduction">Introduction</h1>
+      <h1 class="mume-header" id="searching-for-major-branch">Searching for major branch</h1>
 
-<h2 class="mume-header" id="what-is-bootstrapping">What is bootstrapping</h2>
-
-<p>Tezos is a permissionless blockchain, anyone can run a node and attempt to sync with other nodes on the network</p>
-<p>It is also possible for a node to fail, go offline for some time, and then attempt to reconnect to the network</p>
-<p><em>Bootstrapping</em> is the process of a node syncing with the current state of the network</p>
-<p>Nodes start the bootstrapping process after they have established sufficiently many secure connections (via <em>handshaking</em>)</p>
-<h2 class="mume-header" id="why-do-we-care">Why do we care</h2>
-
-<p>Bootstrapping nodes are particularly vulnerable to attacks since they do not have much info about the state</p>
-<p>General goals of TezEdge:</p>
-<ul>
-<li>simplify complex algorithms</li>
-<li>improve safety/security</li>
-<li>improve performance</li>
-</ul>
-<p>We use TLA+ to express and verify liveness properties for the TezEdge node</p>
-<p>We also hope to use TLA+ to gain insights into space and memory usage in the future</p>
-<h2 class="mume-header" id="how-we-can-help">How we can help</h2>
+<p>The bootstrapping node is in the process of locating a major branch. This is their sole focus in this phase.</p>
+<h2 class="mume-header" id="messages">Messages</h2>
 
 <ul>
-<li>formal specifications to clarify, simplify, and codify algorithms</li>
-<li>formulate and verify safety and liveness properties</li>
-<li>model checking (esp using <em>inductive invariants</em>) to exhaustively verify design</li>
+<li><code>Get_current_branch</code>/<code>Current_branch</code></li>
+<li><code>Get_block_header</code>/<code>Block_header</code></li>
 </ul>
-<h2 class="mume-header" id="bootstrapping-specbootstrapping_spechtml"><a href="./bootstrapping_spec.html">Bootstrapping spec</a></h2>
+<h3 class="mume-header" id="current-branch">Current branch</h3>
 
+<ul>
+<li>Bootstrapping node requests a <code>Current_branch</code></li>
+</ul>
+<pre data-role="codeBlock" data-info class="language-"><code>SendGetCurrentBranch == \E bn \in GOOD_BOOTSTRAPPING :
+    \E n \in connections[bn] :
+        /\ All_bootstrapping_initialized
+        /\ phase[bn] \in Phase_search
+        /\ has_requested_branch_from(bn, n)
+        /\ Send_n(n, get_current_branch_msg(bn))
+        /\ sent_get_branch&apos; = [ sent_get_branch EXCEPT ![bn] = @ \cup {n} ]
+        /\ UNCHANGED &lt;&lt;b_messages, blacklist, node_vars, b_non_branch_vars, recv_branch&gt;&gt;
+</code></pre><ul>
+<li>Peer responds with a <code>Current_head</code></li>
+</ul>
+<pre data-role="codeBlock" data-info class="language-"><code>HandleGetCurrentBranch == \E n \in GOOD_NODES :
+    \E msg \in get_current_branch_msgs(n) :
+        LET bn  == msg.from
+            hist == SAMPLES[n, bn]
+            curr_branch_msg == current_branch_msg(n, [ current_head |-&gt; CURRENT_HEAD[n], history |-&gt; hist ])
+        IN
+        /\ Drop_n(n, msg)
+        /\ Send_b(bn, curr_branch_msg)
+        /\ recv_get_branch&apos; = [ recv_get_branch EXCEPT ![n] = @ \cup {bn} ]
+        /\ sent_branch&apos;     = [ sent_branch     EXCEPT ![n][bn] = @ \cup ToSet(hist) ]
+        /\ UNCHANGED &lt;&lt;blacklist, bootstrapping_vars, n_non_branch_vars&gt;&gt;
+</code></pre><ul>
+<li>Bootstrapping node handles a <code>Current_branch</code></li>
+</ul>
+<pre data-role="codeBlock" data-info class="language-"><code>HandleCurrentBranch == \E bn \in GOOD_BOOTSTRAPPING :
+    \E msg \in current_branch_msgs(bn) :
+        LET \* @type: NODE;
+            n == msg.from
+            \* @type: Seq(&lt;&lt;LEVEL, BLOCK_HASH&gt;&gt;);
+            hist == msg.locator.history
+            \* @type: HEADER;
+            curr_hd == msg.locator.current_head
+        IN
+        \* non-init phase
+        /\ phase[bn] \in (Phases \ Phase_init)
+        /\ has_requested_branch_from(bn, n)
+        /\ Drop_b(bn, msg)
+        /\ fittest_head&apos; = [ fittest_head EXCEPT ![bn][n] = IF curr_hd.fitness &gt; @.fitness THEN curr_hd ELSE @ ]
+        /\ recv_header&apos;  = [ recv_header  EXCEPT ![bn][n] = @ \cup {curr_hd} ]
+        /\ recv_branch&apos;  = [ recv_branch  EXCEPT ![bn][n] = @ \cup ToSet(hist) ]
+        /\ UNCHANGED &lt;&lt;n_messages, blacklist, node_vars, connections, current_head, pipe_vars, b_sent_vars, recv_header, recv_operation&gt;&gt;
+</code></pre><h3 class="mume-header" id="block-headers">Block headers</h3>
+
+<ul>
+<li>Bootstrapping node requests a <code>Block_header</code></li>
+</ul>
+<pre data-role="codeBlock" data-info class="language-"><code>SendGetBlockHeaders == \E bn \in GOOD_BOOTSTRAPPING :
+    \E n \in connections[bn], bhs \in NESet_hd(fetched_hashes(bn)) :
+        /\ phase[bn] \in (Phases \ Phase_init)
+        /\ Send_n(n, get_block_headers_msg(bn, bhs))
+        /\ sent_get_headers&apos; = [ sent_get_headers EXCEPT ![bn][n] = @ \cup bhs ]
+        /\ UNCHANGED &lt;&lt;b_messages, blacklist, node_vars, b_non_header_vars, recv_header&gt;&gt;
+</code></pre><ul>
+<li>Peer responds with a <code>Block_header</code></li>
+</ul>
+<pre data-role="codeBlock" data-info class="language-"><code>HandleGetBlockHeaders == \E n \in GOOD_NODES :
+    \E msg \in get_block_headers_msgs(n) :
+        LET bn == msg.from
+            hs == msg.hashes \cap node_hashes(n)
+        IN
+        /\ Drop_n(n, msg)
+        /\ recv_get_headers&apos; = [ recv_get_headers EXCEPT ![n][bn] = @ \cup hs ]
+        /\ serving_headers&apos;  = [ serving_headers  EXCEPT ![n][bn] = @ \cup hs ]
+        /\ UNCHANGED &lt;&lt;b_messages, blacklist, bootstrapping_vars, n_non_serving_vars, serving_ops&gt;&gt;
+</code></pre><ul>
+<li>Bootstrapping node handles a <code>Block_header</code></li>
+</ul>
+<pre data-role="codeBlock" data-info class="language-"><code>HandleBlockHeader == \E bn \in GOOD_BOOTSTRAPPING :
+    \E msg \in block_header_msgs(bn) :
+        LET n  == msg.from
+            hd == msg.header
+        IN
+        /\ hash(hd) \in sent_get_headers[bn][n]
+        /\ hd \notin fetched_headers(bn)
+        /\ Drop_b(bn, msg)
+        /\ recv_header&apos; = [ recv_header EXCEPT ![bn][n] = @ \cup {hd} ]
+        /\ UNCHANGED &lt;&lt;n_messages, blacklist, node_vars, b_non_recv_vars, recv_branch, recv_operation&gt;&gt;
+</code></pre><p>Bootstrapping node is not requesting operations and should not receive any operations at this time</p>
 
       </div>
       

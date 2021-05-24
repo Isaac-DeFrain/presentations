@@ -12,10 +12,6 @@ and receives three types of messages:
 - `Block_header` - node's respond with the requested header or do not respond
 - `Operation` - node's respond with the requested operation or do not respond
 
-## Phase diagram
-
-[![](./phase_diagram.dot.svg)](./phase_diagram.dot.svg)
-
 ## Assumptions/Simplifications
 
 - all messages are for the same `chain_id`
@@ -294,6 +290,11 @@ If a new major header (with higher fitness) is found during this phase:
       <>( \/ hd = curr_hd
           \/ hd.fitness < curr_hd.fitness )
 ```
+
+
+## Phase diagram
+
+[![](./phase_diagram.dot.svg)](./phase_diagram.dot.svg)
 
 ## Performance
 

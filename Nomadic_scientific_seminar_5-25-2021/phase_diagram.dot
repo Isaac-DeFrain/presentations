@@ -4,15 +4,15 @@ digraph phase_diagram {
 
     // states
     init;
-    search [href="./node_files/searching_for_major_branch.html", label="searching for major branch\nwith higher fitness than current branch\n\nmessages:\lout: Get_current_branch, Get_block_headers\lin: Current_branch, Block_header\l"];
-    major  [href="./node_files/validating_major_branch.html", label="validating major branch\n\nmessages:\lout: Get_block_headers, Get_operations\lin: Current_branch, Block_header, Operation\l"];
-    apply  [href="./node_files/applying_blocks.html", label="applying blocks to enqueued\nheaders and operations\n\nmessages:\lout: N/A\lin: Current_branch, Block_header, Operation\l"];
+    search [href="./node_files/searching_for_major_branch.html", label="searching for major branch\nwith higher fitness than current branch\n\nmessages:\nout: Get_current_branch, Get_block_headers\lin: Current_branch, Block_header\l"];
+    major  [href="./node_files/validating_major_branch.html", label="validating major branch\nand enqueuing block data\n\nmessages:\nout: Get_block_headers, Get_operations\lin: Current_branch, Block_header, Operation\l"];
+    apply  [href="./node_files/applying_blocks.html", label="applying blocks to enqueued\nheaders and operations\n\nmessages:\nno messages are processed"];
 
     // transitions
     init   -> search [href="./edge_files/connect_to_peers.html", label="connect\nto peers"];
-    search -> major  [href="./edge_files/found_major_branch.html", label="found major\nbranch with\nhigher fitness\n "];
+    search -> major  [href="./edge_files/found_major_branch.html", label="found major\nbranch with\nhigher fitness"];
     major  -> major  [href="./edge_files/new_major_branch.html", label="new major branch with\nhigher fitness found"];
     major  -> apply  [href="./edge_files/enqueue.html", label="finished downloading\nblock data"];
     apply  -> search [href="./edge_files/applied_blocks.html", label="\nsuccessfully applied\nall enqueued blocks"];
-    apply  -> major  [href="./edge_files/new_major_branch.html", label="new major branch with\nhigher fitness found"];
+
 }

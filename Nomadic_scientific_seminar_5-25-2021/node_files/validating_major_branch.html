@@ -1,5 +1,5 @@
 <!DOCTYPE html><html><head>
-      <title>intro</title>
+      <title>validating_major_branch</title>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       
@@ -261,34 +261,99 @@ pre[data-line] .line-highlight[data-end]:after {
     </head>
     <body for="html-export">
       <div class="mume markdown-preview  ">
-      <h1 class="mume-header" id="introduction">Introduction</h1>
+      <h1 class="mume-header" id="validating-a-major-branch">Validating a major branch</h1>
 
-<h2 class="mume-header" id="what-is-bootstrapping">What is bootstrapping</h2>
-
-<p>Tezos is a permissionless blockchain, anyone can run a node and attempt to sync with other nodes on the network</p>
-<p>It is also possible for a node to fail, go offline for some time, and then attempt to reconnect to the network</p>
-<p><em>Bootstrapping</em> is the process of a node syncing with the current state of the network</p>
-<p>Nodes start the bootstrapping process after they have established sufficiently many secure connections (via <em>handshaking</em>)</p>
-<h2 class="mume-header" id="why-do-we-care">Why do we care</h2>
-
-<p>Bootstrapping nodes are particularly vulnerable to attacks since they do not have much info about the state</p>
-<p>General goals of TezEdge:</p>
-<ul>
-<li>simplify complex algorithms</li>
-<li>improve safety/security</li>
-<li>improve performance</li>
-</ul>
-<p>We use TLA+ to express and verify liveness properties for the TezEdge node</p>
-<p>We also hope to use TLA+ to gain insights into space and memory usage in the future</p>
-<h2 class="mume-header" id="how-we-can-help">How we can help</h2>
+<p>The bootstrapping node is in the process of retrieving and prevalidating the headers and operations for their current branch</p>
+<h2 class="mume-header" id="messages">Messages</h2>
 
 <ul>
-<li>formal specifications to clarify, simplify, and codify algorithms</li>
-<li>formulate and verify safety and liveness properties</li>
-<li>model checking (esp using <em>inductive invariants</em>) to exhaustively verify design</li>
+<li><code>Get_block_headers</code>/<code>Block_header</code></li>
+<li><code>Get_operations</code>/<code>Operation</code></li>
 </ul>
-<h2 class="mume-header" id="bootstrapping-specbootstrapping_spechtml"><a href="./bootstrapping_spec.html">Bootstrapping spec</a></h2>
+<h3 class="mume-header" id="block-headers">Block headers</h3>
 
+<ul>
+<li>Bootstrapping node requests a <code>Block_header</code></li>
+</ul>
+<pre data-role="codeBlock" data-info class="language-"><code>SendGetBlockHeaders == \E bn \in GOOD_BOOTSTRAPPING :
+    \E n \in connections[bn], bhs \in NESet_hd(fetched_hashes(bn)) :
+        /\ phase[bn] \in (Phases \ Phase_init)
+        /\ Send_n(n, get_block_headers_msg(bn, bhs))
+        /\ sent_get_headers&apos; = [ sent_get_headers EXCEPT ![bn][n] = @ \cup bhs ]
+        /\ UNCHANGED &lt;&lt;b_messages, blacklist, node_vars, b_non_header_vars, recv_header&gt;&gt;
+</code></pre><ul>
+<li>Peer responds with a <code>Block_header</code></li>
+</ul>
+<pre data-role="codeBlock" data-info class="language-"><code>HandleGetBlockHeaders == \E n \in GOOD_NODES :
+    \E msg \in get_block_headers_msgs(n) :
+        LET bn == msg.from
+            hs == msg.hashes \cap node_hashes(n)
+        IN
+        /\ Drop_n(n, msg)
+        /\ recv_get_headers&apos; = [ recv_get_headers EXCEPT ![n][bn] = @ \cup hs ]
+        /\ serving_headers&apos;  = [ serving_headers  EXCEPT ![n][bn] = @ \cup hs ]
+        /\ UNCHANGED &lt;&lt;b_messages, blacklist, bootstrapping_vars, n_non_serving_vars, serving_ops&gt;&gt;
+</code></pre><ul>
+<li>Bootstrapping node handles a <code>Block_header</code></li>
+</ul>
+<pre data-role="codeBlock" data-info class="language-"><code>HandleBlockHeader == \E bn \in GOOD_BOOTSTRAPPING :
+    \E msg \in block_header_msgs(bn) :
+        LET n  == msg.from
+            hd == msg.header
+        IN
+        /\ hash(hd) \in sent_get_headers[bn][n]
+        /\ hd \notin fetched_headers(bn)
+        /\ Drop_b(bn, msg)
+        /\ recv_header&apos; = [ recv_header EXCEPT ![bn][n] = @ \cup {hd} ]
+        /\ UNCHANGED &lt;&lt;n_messages, blacklist, node_vars, b_non_recv_vars, recv_branch, recv_operation&gt;&gt;
+</code></pre><h3 class="mume-header" id="operations">Operations</h3>
+
+<ul>
+<li>Bootstrapping node requests a set of <code>Operation</code>s</li>
+</ul>
+<pre data-role="codeBlock" data-info class="language-"><code>SendGetOperations == \E bn \in GOOD_BOOTSTRAPPING :
+    \E n \in connections[bn], hd \in headers(bn) :
+        LET bh  == hash(hd)
+            ops == operations(bh, 1..hd.ops_hash)
+            req == ops \ all_recv_operations_block_hash(bn, bh)
+            ohs == { &lt;&lt;bh, op_hash[op]&gt;&gt; : op \in req }
+        IN
+        /\ req /= {}
+        /\ n \in b_blacklist[bn]
+        /\ phase[bn] \in Phase_apply
+        /\ Send_n(n, get_operations_msg(bn, ohs))
+        /\ sent_get_ops&apos; = [ sent_get_ops EXCEPT ![bn][n] = @ \cup ohs ]
+        /\ UNCHANGED &lt;&lt;b_messages, blacklist, node_vars, b_non_op_vars, recv_operation&gt;&gt;
+</code></pre><ul>
+<li>Peer responds with an <code>Operation</code></li>
+</ul>
+<pre data-role="codeBlock" data-info class="language-"><code>HandleGetOperations == \E n \in GOOD_NODES :
+    \E msg \in get_operations_msgs(n) :
+        LET bn  == msg.from
+            ohs == msg.op_hashes \ node_op_hashes(n)
+            bh  == Pick({ oh[1] : oh \in ohs })
+        IN
+        /\ bh \in node_hashes(n)
+        /\ Drop_n(n, msg)
+        /\ recv_get_ops&apos; = [ recv_get_ops EXCEPT ![n][bn] = @ \cup ohs ]
+        /\ serving_ops&apos;  = [ serving_ops  EXCEPT ![n][bn][bh] = @ \cup { oh[2] : oh \in ohs } ]
+        /\ UNCHANGED &lt;&lt;b_messages, blacklist, bootstrapping_vars, n_non_serving_vars, serving_headers&gt;&gt;
+</code></pre><ul>
+<li>Bootstrapping node handles an <code>Operation</code></li>
+</ul>
+<pre data-role="codeBlock" data-info class="language-"><code>HandleOperation == \E bn \in GOOD_BOOTSTRAPPING :
+    \E msg \in operation_msgs(bn) :
+        LET n  == msg.from
+            op == msg.operation
+            bh == op.block_hash
+        IN
+        \E hd \in headers(bn) :
+            /\ bh = hash(hd)
+            /\ op \notin recv_operation[bn][n]
+            /\ Drop_b(bn, msg)
+            /\ recv_operation&apos; = [ recv_operation EXCEPT ![bn][n] = @ \cup {op} ]
+            /\ UNCHANGED &lt;&lt;n_messages, blacklist, node_vars, b_non_recv_vars, recv_branch, recv_header&gt;&gt;
+</code></pre><p>Bootstrapping node is not requesting current branches, but may still receive current branch responses sent in the previous phase</p>
 
       </div>
       
