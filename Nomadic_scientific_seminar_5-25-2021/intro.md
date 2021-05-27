@@ -12,22 +12,22 @@ Nodes start the bootstrapping process after they have established sufficiently m
 
 ## Why do we care
 
-Bootstrapping nodes are particularly vulnerable to attacks since they do not have much info about the state
+Bootstrapping nodes are particularly vulnerable to attacks since they do not have much info about the current state
 
-General goals of TezEdge:
+General goals of Viable Systems and TezEdge:
 
-- simplify complex algorithms
 - improve safety/security
+- ensure liveness
 - improve performance
+- simplify complex algorithms
+- improve transparency and build relationships within the Tezos ecosystem
 
-We use TLA+ to express and verify liveness properties for the TezEdge node
-
-We also hope to use TLA+ to gain insights into space and memory usage in the future
+We use TLA+ to express and verify safety and liveness properties for the TezEdge node
 
 ## How we can help
 
 - formal specifications to clarify, simplify, and codify algorithms
 - formulate and verify safety and liveness properties
-- model checking (esp using *inductive invariants*) to exhaustively verify design
+- model checking (esp using *inductive invariants*) to exhaustively verify design and properties
 
 ## [Bootstrapping spec](./bootstrapping_spec.html)

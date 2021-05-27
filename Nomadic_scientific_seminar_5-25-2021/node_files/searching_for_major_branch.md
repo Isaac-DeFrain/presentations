@@ -1,4 +1,6 @@
-# Searching for major branch
+# Searching for a major branch
+
+[Back](../phase_diagram_vertical.dot.svg)
 
 The bootstrapping node is in the process of locating a major branch. This is their sole focus in this phase.
 
@@ -43,15 +45,11 @@ HandleGetCurrentBranch == \E n \in GOOD_NODES :
 ```
 HandleCurrentBranch == \E bn \in GOOD_BOOTSTRAPPING :
     \E msg \in current_branch_msgs(bn) :
-        LET \* @type: NODE;
-            n == msg.from
-            \* @type: Seq(<<LEVEL, BLOCK_HASH>>);
+        LET n == msg.from
             hist == msg.locator.history
-            \* @type: HEADER;
             curr_hd == msg.locator.current_head
         IN
-        \* non-init phase
-        /\ phase[bn] \in (Phases \ Phase_init)
+        /\ phase[bn] \in Phase_search \cup Phase_major
         /\ has_requested_branch_from(bn, n)
         /\ Drop_b(bn, msg)
         /\ fittest_head' = [ fittest_head EXCEPT ![bn][n] = IF curr_hd.fitness > @.fitness THEN curr_hd ELSE @ ]
@@ -67,7 +65,7 @@ HandleCurrentBranch == \E bn \in GOOD_BOOTSTRAPPING :
 ```
 SendGetBlockHeaders == \E bn \in GOOD_BOOTSTRAPPING :
     \E n \in connections[bn], bhs \in NESet_hd(fetched_hashes(bn)) :
-        /\ phase[bn] \in (Phases \ Phase_init)
+        /\ phase[bn] \in Phase_search \cup Phase_major
         /\ Send_n(n, get_block_headers_msg(bn, bhs))
         /\ sent_get_headers' = [ sent_get_headers EXCEPT ![bn][n] = @ \cup bhs ]
         /\ UNCHANGED <<b_messages, blacklist, node_vars, b_non_header_vars, recv_header>>
@@ -95,6 +93,7 @@ HandleBlockHeader == \E bn \in GOOD_BOOTSTRAPPING :
         LET n  == msg.from
             hd == msg.header
         IN
+        /\ phase[bn] \in Phase_search \cup Phase_major
         /\ hash(hd) \in sent_get_headers[bn][n]
         /\ hd \notin fetched_headers(bn)
         /\ Drop_b(bn, msg)
@@ -102,4 +101,8 @@ HandleBlockHeader == \E bn \in GOOD_BOOTSTRAPPING :
         /\ UNCHANGED <<n_messages, blacklist, node_vars, b_non_recv_vars, recv_branch, recv_operation>>
 ```
 
-Bootstrapping node is not requesting operations and should not receive any operations at this time
+The bootstrapping node does not request operations and should not receive any operations in this phase
+
+[Back](../phase_diagram_vertical.dot.svg)
+
+[End](../final.html)

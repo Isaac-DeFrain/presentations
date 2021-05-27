@@ -263,6 +263,7 @@ pre[data-line] .line-highlight[data-end]:after {
       <div class="mume markdown-preview  ">
       <h1 class="mume-header" id="validating-a-major-branch">Validating a major branch</h1>
 
+<p><a href="../phase_diagram_vertical.dot.svg">Back</a></p>
 <p>The bootstrapping node is in the process of retrieving and prevalidating the headers and operations for their current branch</p>
 <h2 class="mume-header" id="messages">Messages</h2>
 
@@ -277,7 +278,8 @@ pre[data-line] .line-highlight[data-end]:after {
 </ul>
 <pre data-role="codeBlock" data-info class="language-"><code>SendGetBlockHeaders == \E bn \in GOOD_BOOTSTRAPPING :
     \E n \in connections[bn], bhs \in NESet_hd(fetched_hashes(bn)) :
-        /\ phase[bn] \in (Phases \ Phase_init)
+        /\ phase[bn] \in Phase_search \cup Phase_major
+        /\ bn \notin n_blacklist[n]
         /\ Send_n(n, get_block_headers_msg(bn, bhs))
         /\ sent_get_headers&apos; = [ sent_get_headers EXCEPT ![bn][n] = @ \cup bhs ]
         /\ UNCHANGED &lt;&lt;b_messages, blacklist, node_vars, b_non_header_vars, recv_header&gt;&gt;
@@ -300,11 +302,13 @@ pre[data-line] .line-highlight[data-end]:after {
     \E msg \in block_header_msgs(bn) :
         LET n  == msg.from
             hd == msg.header
+            h  == hash(hd)
         IN
-        /\ hash(hd) \in sent_get_headers[bn][n]
+        /\ phase[bn] \in Phase_search \cup Phase_major
+        /\ h \in sent_get_headers[bn][n]
         /\ hd \notin fetched_headers(bn)
         /\ Drop_b(bn, msg)
-        /\ recv_header&apos; = [ recv_header EXCEPT ![bn][n] = @ \cup {hd} ]
+        /\ recv_header&apos; = [ recv_header EXCEPT ![bn][n] = @ \cup {&lt;&lt;h, hd&gt;&gt;} ]
         /\ UNCHANGED &lt;&lt;n_messages, blacklist, node_vars, b_non_recv_vars, recv_branch, recv_operation&gt;&gt;
 </code></pre><h3 class="mume-header" id="operations">Operations</h3>
 
@@ -312,15 +316,15 @@ pre[data-line] .line-highlight[data-end]:after {
 <li>Bootstrapping node requests a set of <code>Operation</code>s</li>
 </ul>
 <pre data-role="codeBlock" data-info class="language-"><code>SendGetOperations == \E bn \in GOOD_BOOTSTRAPPING :
-    \E n \in connections[bn], hd \in headers(bn) :
+    \E n \in connections[bn], hd \in fetched_headers(bn) :
         LET bh  == hash(hd)
             ops == operations(bh, 1..hd.ops_hash)
             req == ops \ all_recv_operations_block_hash(bn, bh)
             ohs == { &lt;&lt;bh, op_hash[op]&gt;&gt; : op \in req }
         IN
         /\ req /= {}
-        /\ n \in b_blacklist[bn]
-        /\ phase[bn] \in Phase_apply
+        /\ phase[bn] \in Phase_major
+        /\ bn \notin n_blacklist[n]
         /\ Send_n(n, get_operations_msg(bn, ohs))
         /\ sent_get_ops&apos; = [ sent_get_ops EXCEPT ![bn][n] = @ \cup ohs ]
         /\ UNCHANGED &lt;&lt;b_messages, blacklist, node_vars, b_non_op_vars, recv_operation&gt;&gt;
@@ -354,6 +358,8 @@ pre[data-line] .line-highlight[data-end]:after {
             /\ recv_operation&apos; = [ recv_operation EXCEPT ![bn][n] = @ \cup {op} ]
             /\ UNCHANGED &lt;&lt;n_messages, blacklist, node_vars, b_non_recv_vars, recv_branch, recv_header&gt;&gt;
 </code></pre><p>Bootstrapping node is not requesting current branches, but may still receive current branch responses sent in the previous phase</p>
+<p><a href="../phase_diagram_vertical.dot.svg">Back</a></p>
+<p><a href="../final.html">End</a></p>
 
       </div>
       

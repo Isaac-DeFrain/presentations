@@ -1,5 +1,7 @@
 # Applying blocks
 
+[Back](../phase_diagram_vertical.dot.svg)
+
 The bootstrapping node has downloaded and prevalidated all necessary headers and operations. Now they will enqueue the data and form blocks.
 
 ## Messages
@@ -10,40 +12,35 @@ Bootstrapping nodes in this phase do not send any requests or handle any incomin
 
 ```
 EnqueueHeader == \E bn \in GOOD_BOOTSTRAPPING :
-    LET hds == remaining_headers(bn) IN
-    /\ hds /= {}
-    /\ LET hd  == Min_level_set(hds) IN
-        /\ header_pipe' = [ header_pipe EXCEPT ![bn] = SortSeq(Append(@, hd), min_level_cmp) ]
-        /\ UNCHANGED <<messages, blacklist, node_vars, b_non_pipe_vars, operation_pipe>>
+    LET pvhds == prevalidated_hds[bn] IN
+    /\ pvhds /= {}
+    /\ phase[bn] \in Phase_major
+    /\ LET hd == Max_level_set(pvhds) IN
+        /\ prevalidated_hds' = [ prevalidated_hds EXCEPT ![bn] = @ \ {hd} ]
+        /\ header_pipe'      = [ header_pipe      EXCEPT ![bn] = Cons(hd, @) ]
+        /\ UNCHANGED <<messages, blacklist, node_vars, b_non_hd_q_vars>>
 ```
 
 - Enqueuing operations
 
 ```
 EnqueueOperations == \E bn \in GOOD_BOOTSTRAPPING :
-    LET rem_ops == remaining_operations(bn)
-        h_pipe  == header_pipe[bn]
-    IN
-    /\ h_pipe /= <<>>
-    /\ rem_ops /= {}
-    /\ LET bh  == (Pick(rem_ops)).block_hash
-           ops == rem_ops_block_hash(bn, bh)
-           hd  == Head(h_pipe)
+    LET pvops == prevalidated_ops[bn] IN
+    /\ pvops /= {}
+    /\ phase[bn] \in Phase_major
+    /\ LET max  == Max_set({ op[1] : op \in pvops })
+           pair == Pick({ op \in pvops : op[1] = max })
+           ops  == pair[2]
        IN
-        /\ bh = hash(hd)
-        /\ num_fetched_ops_block_hash(bn, bh) = hd.ops_hash
-        /\ operation_pipe' = [ operation_pipe EXCEPT ![bn] =
-            LET block_hash_at_index(i) == Pick({ op.block_hash : op \in @[i] }) IN
-            IF bh \in { block_hash_at_index(i) : i \in DOMAIN @ } THEN
-                LET i == { ii \in DOMAIN @ : bh \in block_hash_at_index(ii) } IN [ @ EXCEPT ![i] = @ \cup ops ]
-            ELSE Cons(ops, @) ]
-        /\ UNCHANGED <<messages, blacklist, node_vars, b_non_pipe_vars, header_pipe>>
+        /\ prevalidated_ops' = [ prevalidated_ops EXCEPT ![bn] = @ \ {pair} ]
+        /\ operation_pipe'   = [ operation_pipe   EXCEPT ![bn] = Cons(ops, @) ]
+        /\ UNCHANGED <<messages, blacklist, node_vars, b_non_op_q_vars>>
 ```
 
 - Forming blocks
 
 ```
-ValidateBlock == \E bn \in GOOD_BOOTSTRAPPING :
+ApplyBlock == \E bn \in GOOD_BOOTSTRAPPING :
     LET hds == header_pipe[bn]
         ops == operation_pipe[bn]
     IN
@@ -51,8 +48,15 @@ ValidateBlock == \E bn \in GOOD_BOOTSTRAPPING :
     /\ hds /= <<>>
     /\ ops /= <<>>
     /\ LET hd == Head(hds)
-            op == Head(ops)
+           op == Head(ops)
+           b  == block(hd, ops)
         IN
-        /\ op.block_hash = hash(hd)
-        /\ validate_block(bn, hd, ops, 0) \* TODO fix ctx hash
+        /\ header_pipe'       = [ header_pipe      EXCEPT ![bn] = Tail(@) ]
+        /\ operation_pipe'    = [ operation_pipe   EXCEPT ![bn] = Tail(@) ]
+        /\ validated_blocks'  = [ validated_blocks EXCEPT ![bn] = @ \cup {b} ]
+        /\ UNCHANGED <<messages, blacklist, node_vars, b_non_pipe_vars>>
 ```
+
+[Back](../phase_diagram_vertical.dot.svg)
+
+[End](../final.html)

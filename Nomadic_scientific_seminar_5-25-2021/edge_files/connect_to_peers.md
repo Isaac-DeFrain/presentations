@@ -13,3 +13,7 @@ InitConnections == \E bn \in Bootstrapping_nodes :
     /\ connections' = [ connections EXCEPT ![bn] = ps ]
     /\ UNCHANGED <<blacklist, messages, b_non_conn_vars, node_vars>>
 ```
+
+[Back](../phase_diagram_vertical.dot.svg)
+
+[End](../final.html)

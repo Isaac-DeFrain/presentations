@@ -271,21 +271,22 @@ pre[data-line] .line-highlight[data-end]:after {
 <p>Nodes start the bootstrapping process after they have established sufficiently many secure connections (via <em>handshaking</em>)</p>
 <h2 class="mume-header" id="why-do-we-care">Why do we care</h2>
 
-<p>Bootstrapping nodes are particularly vulnerable to attacks since they do not have much info about the state</p>
-<p>General goals of TezEdge:</p>
+<p>Bootstrapping nodes are particularly vulnerable to attacks since they do not have much info about the current state</p>
+<p>General goals of Viable Systems and TezEdge:</p>
 <ul>
-<li>simplify complex algorithms</li>
 <li>improve safety/security</li>
+<li>ensure liveness</li>
 <li>improve performance</li>
+<li>simplify complex algorithms</li>
+<li>improve transparency and build relationships within the Tezos ecosystem</li>
 </ul>
-<p>We use TLA+ to express and verify liveness properties for the TezEdge node</p>
-<p>We also hope to use TLA+ to gain insights into space and memory usage in the future</p>
+<p>We use TLA+ to express and verify safety and liveness properties for the TezEdge node</p>
 <h2 class="mume-header" id="how-we-can-help">How we can help</h2>
 
 <ul>
 <li>formal specifications to clarify, simplify, and codify algorithms</li>
 <li>formulate and verify safety and liveness properties</li>
-<li>model checking (esp using <em>inductive invariants</em>) to exhaustively verify design</li>
+<li>model checking (esp using <em>inductive invariants</em>) to exhaustively verify design and properties</li>
 </ul>
 <h2 class="mume-header" id="bootstrapping-specbootstrapping_spechtml"><a href="./bootstrapping_spec.html">Bootstrapping spec</a></h2>
 

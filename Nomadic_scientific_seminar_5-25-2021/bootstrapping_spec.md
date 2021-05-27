@@ -12,7 +12,7 @@ and receives three types of messages:
 - `Block_header` - node's respond with the requested header or do not respond
 - `Operation` - node's respond with the requested operation or do not respond
 
-## Assumptions/Simplifications
+## Assumptions/Clarifications/Simplifications
 
 - all messages are for the same `chain_id`
 - all headers are for the same `proto_level`
@@ -21,8 +21,7 @@ and receives three types of messages:
   - `Get_current_branch`/`Current_branch`
   - `Get_block_headers`/`Block_header`
   - `Get_operations`/`Operation`
-- i.e. no `Current_head` or mempool
-- bootstrapping nodes have the ability to request a specific history sample, by levels
+  - i.e. no `Current_head` or mempool
 - bootstrapping nodes only communicate with established nodes
 - node's are blacklisted when we timeout while communicating with them, no matter the cause
 - lengths of all chains are bounded
@@ -41,13 +40,13 @@ and receives three types of messages:
 
 - `CURRENT_HEAD` - each good node's current head
 - `BLOCKS` - each good node's blocks
-- `VALIDATOR` - Blocks -> { "known_valid", "known_invalid", "unknown" }
-- `SAMPLES` - GOOD_NODES * Bootstrapping_nodes -> Seq_n(Levels)
-- `HASH_BLOCK_MAP` - BlockHashes -> Headers
+- `SAMPLES` - each good node's samples for each bootstrapping node
 
 ## Variables
 
 ### Bootstrapping
+
+Each bootstrapping node `bn` has:
 
 - `b_blacklist` - set of `bn`'s blacklisted peers
 - `b_messages` - set of `bn`'s messages
@@ -58,10 +57,12 @@ Each bootstrapping node `bn` has:
 
 - `phase` - the state of `bn`, governs the actions taken by `bn`
 - `connections` - set of nodes with whom `bn` may exchange messages
-- `current_head` - current head (initially `genesis` header)
+- `current_head` - `bn`'s current fittest header with majority support (initially `genesis` header)
 - `fittest_head` - the fittest header of each of `bn`'s peers
 - `header_pipe` - queue of validated headers to form blocks
 - `operation_pipe` - queue of validated operations to form blocks
+- `prevalidated_hds` - set of headers on the major branch which are ready to add to `header_pipe`
+- `prevalidated_ops` - set of operations on the major branch which are ready to add to `operation_pipe`
 - `validated_blocks` - set of validated blocks to add to `bn`'s chain
 
 #### History
@@ -71,15 +72,11 @@ Each bootstrapping node `bn` has the following history variables:
 - `phase_trace` - trace of each phase experienced
 
 - `sent_get_branch` - set of nodes from whom `bn` has requested a current branch
-- `sent_get_headers` - set of requested block hashes from each of `bn`'s peers
-- `sent_get_ops` - set of requested operation hashes from each of `bn`'s peers
-- `recv_branch` - set of samples (block hashes) received from each of `bn`'s peers
-- `recv_header` - set of block headers received from each of `bn`'s peers
-- `recv_operation` - set of pairs of block hashes and operations received from each of `bn`'s peers
-
-#### Memory/Space
-
-- `mem_size` - estimated amount of memory used by `bn`
+- `sent_get_headers` - set of requested (level, block hash) pairs from each of `bn`'s peers
+- `sent_get_ops` - set of requested (block hash, operation hash) pairs from each of `bn`'s peers
+- `recv_branch` - set of samples ((level, block hash) pairs) received from each of `bn`'s peers
+- `recv_header` - set of (block hash, header) pairs received from each of `bn`'s peers
+- `recv_operation` - set of (block hash, operations) pairs received from each of `bn`'s peers
 
 ### Node 
 
@@ -87,28 +84,30 @@ Each good node has:
 
 - `n_blacklist` - set of blacklisted peers
 - `n_messages` - set of messages
-- `serving_headers` - headers which have been requested by bottstrapping nodes
+- `serving_headers` - headers which have been requested by bootstrapping nodes
 - `serving_ops` - operations which have been requested by bootstrapping nodes
 
 #### History
 
 Each good node keeps a collection of each type of data sent and received:
 
-- `sent_branch` - set of peers to whom they have sent a `Current_branch` message
+- `sent_branch` - set of (level, block hash) pairs sent to each peer who has requested a `Current_branch`
 - `sent_headers` - set of headers sent to each peer who has requested a `Block_header`
 - `sent_ops` - set of operations sent to each peer who has requested an `Operation`
 - `recv_get_branch` - set of peers who have requested the current branch
-- `recv_get_headers` - set of block hashes each peer has requested the corresponding header for
-- `recv_get_ops` - set of operation hashes each peer has requested the corresponding operation for
+- `recv_get_headers` - set of (level, block hash) pairs each peer has requested the corresponding header for
+- `recv_get_ops` - set of (block hash, operation hash) pairs each peer has requested the corresponding operation for
 
-### Searching for major branch
+## Phases
+
+### Searching for a major branch
 
 The bootstrapping node has sufficiently many connections
 
 - Doing:
-  - high priority: requesting current branches from all peers
-  - low prioity: requesting block headers of received block hashes
-  - attempting to find a header that a majority of peers have in their chain
+  - requesting current branches from all peers
+  - requesting block headers of received block hashes
+  - attempting to find a header that a majority of peers claim to have in their chain
 
 - Not doing:
   - not requesting operations
@@ -118,43 +117,35 @@ The bootstrapping node has sufficiently many connections
 
 The bootstrapping node has seen majority peer support for a header
 
-The bootstrapping node only needs to download each (header, operations) pair once and cross-validate against peer hashes
+The bootstrapping node downloads each (header, operations) pair, cross-validates against peer hashes if possible, and determines majority support before adding either to the prevalidated sets
 
 - Doing:
-  - requesting latest block headers within a suffix of the major branch
+  - requesting block headers within a suffix of the major branch
   - requesting corresponding operations
   - cross-validating a portion of the history
-  - enqueuing headers and operations in the pipes
+  - moving headers and operations to the prevalidated sets
 
 - Not doing:
+  - not enqueuing headers/operations
   - not applying blocks
 
 If a new major header (with higher fitness) is found during this phase:
 
 - adjust `current_head`
 - adjust level of validation phase
-- if on the same branch, keep the same requests and add any new ones
-- if not on the same branch, delete requests down to common branch and add new ones
+- wil be on the same branch by majority rule, keep the same requests and add any new ones
 
 ### Applying blocks
 
 The bootstrapping node has received all requested headers and operations for the target suffix
 
 - Doing:
-  - continue enqueuing headers and operations into the pipes
+  - enqueuing headers and operations into the pipes
   - applying blocks
 
 - Not doing:
-  - not requesting branches
-  - not requesting headers
-  - not requesting operations
-
-If a new major header (with higher fitness) is found during this phase:
-
-- adjust `current_head`
-- return to validation phase
-- if on the same branch, keep everything in the pipes and add any new headers/operations
-- if not on the same branch, delete headers and operations in pipes down to the common branch
+  - not requesting any data
+  - not handling any messages
 
 ## Properties
 
@@ -201,8 +192,8 @@ If a new major header (with higher fitness) is found during this phase:
 
 ```
 \A bn \in GOOD_BOOTSTRAPPING :
-  LET old_head  == current_head[bn]
-      new_head  == current_head'[bn]
+  LET old_head == current_head[bn]
+      new_head == current_head'[bn]
   IN
   [][ old_head /= new_head => old_head.fitness < new_head.fitness ]_vars
 ```
@@ -262,23 +253,16 @@ If a new major header (with higher fitness) is found during this phase:
 ```
 
 ```
-\* Apply -> { Major, Search }
+\* Apply -> Search
 \A bn \in GOOD_BOOTSTRAPPING :
   LET old_phase == phase[bn]
       old_head  == current_head[bn]
       new_phase == phase'[bn]
       new_head  == current_head'[bn]
   IN
-  \* Apply -> Search
   /\ [][ /\ old_phase \in Phase_apply
          /\ new_phase /= new_phase
           => new_phase \in Phase_search \cup Phase_major ]_vars
-  \* Apply -> Major
-  /\ [][ /\ old_phase \in Phase_apply
-         /\ old_phase \in Phase_major
-          =>
-          /\ old_head.fitness < new_head.fitness
-          /\ old_head.level < new_head.level ]_vars
 ```
 
 - if progress can be made, it will be
@@ -291,13 +275,12 @@ If a new major header (with higher fitness) is found during this phase:
           \/ hd.fitness < curr_hd.fitness )
 ```
 
+## Inductive invariants
+
+An *inductive invariant* is a special type of invariant that respects induction, i.e. if the property holds in the initial state and the n-th state, then it will hold again in the (n + 1)-th state.
+
+We like to formulate safety properties as inductive invariants and use the symbolic model checker for TLA+, [Apalache](https://apalache.informal.systems/), to verify them.
 
 ## Phase diagram
 
-[![](./phase_diagram.dot.svg)](./phase_diagram.dot.svg)
-
-## Performance
-
-### Memory
-
-- will ultimately include memory usage estimates in specification and utilize model checking to improve performance
+[![](./phase_diagram_horizontal.dot.svg)](./phase_diagram_vertical.dot.svg)

@@ -275,7 +275,7 @@ pre[data-line] .line-highlight[data-end]:after {
 <li><code>Block_header</code> - node&apos;s respond with the requested header or do not respond</li>
 <li><code>Operation</code> - node&apos;s respond with the requested operation or do not respond</li>
 </ul>
-<h2 class="mume-header" id="assumptionssimplifications">Assumptions/Simplifications</h2>
+<h2 class="mume-header" id="assumptionsclarificationssimplifications">Assumptions/Clarifications/Simplifications</h2>
 
 <ul>
 <li>all messages are for the same <code>chain_id</code></li>
@@ -286,10 +286,9 @@ pre[data-line] .line-highlight[data-end]:after {
 <li><code>Get_current_branch</code>/<code>Current_branch</code></li>
 <li><code>Get_block_headers</code>/<code>Block_header</code></li>
 <li><code>Get_operations</code>/<code>Operation</code></li>
+<li>i.e. no <code>Current_head</code> or mempool</li>
 </ul>
 </li>
-<li>i.e. no <code>Current_head</code> or mempool</li>
-<li>bootstrapping nodes have the ability to request a specific history sample, by levels</li>
 <li>bootstrapping nodes only communicate with established nodes</li>
 <li>node&apos;s are blacklisted when we timeout while communicating with them, no matter the cause</li>
 <li>lengths of all chains are bounded</li>
@@ -329,19 +328,14 @@ pre[data-line] .line-highlight[data-end]:after {
 <p><code>BLOCKS</code> - each good node&apos;s blocks</p>
 </li>
 <li>
-<p><code>VALIDATOR</code> - Blocks -&gt; { &quot;known_valid&quot;, &quot;known_invalid&quot;, &quot;unknown&quot; }</p>
-</li>
-<li>
-<p><code>SAMPLES</code> - GOOD_NODES * Bootstrapping_nodes -&gt; Seq_n(Levels)</p>
-</li>
-<li>
-<p><code>HASH_BLOCK_MAP</code> - BlockHashes -&gt; Headers</p>
+<p><code>SAMPLES</code> - each good node&apos;s samples for each bootstrapping node</p>
 </li>
 </ul>
 <h2 class="mume-header" id="variables">Variables</h2>
 
 <h3 class="mume-header" id="bootstrapping">Bootstrapping</h3>
 
+<p>Each bootstrapping node <code>bn</code> has:</p>
 <ul>
 <li><code>b_blacklist</code> - set of <code>bn</code>&apos;s blacklisted peers</li>
 <li><code>b_messages</code> - set of <code>bn</code>&apos;s messages</li>
@@ -352,10 +346,12 @@ pre[data-line] .line-highlight[data-end]:after {
 <ul>
 <li><code>phase</code> - the state of <code>bn</code>, governs the actions taken by <code>bn</code></li>
 <li><code>connections</code> - set of nodes with whom <code>bn</code> may exchange messages</li>
-<li><code>current_head</code> - current head (initially <code>genesis</code> header)</li>
+<li><code>current_head</code> - <code>bn</code>&apos;s current fittest header with majority support (initially <code>genesis</code> header)</li>
 <li><code>fittest_head</code> - the fittest header of each of <code>bn</code>&apos;s peers</li>
 <li><code>header_pipe</code> - queue of validated headers to form blocks</li>
 <li><code>operation_pipe</code> - queue of validated operations to form blocks</li>
+<li><code>prevalidated_hds</code> - set of headers on the major branch which are ready to add to <code>header_pipe</code></li>
+<li><code>prevalidated_ops</code> - set of operations on the major branch which are ready to add to <code>operation_pipe</code></li>
 <li><code>validated_blocks</code> - set of validated blocks to add to <code>bn</code>&apos;s chain</li>
 </ul>
 <h4 class="mume-header" id="history">History</h4>
@@ -369,25 +365,20 @@ pre[data-line] .line-highlight[data-end]:after {
 <p><code>sent_get_branch</code> - set of nodes from whom <code>bn</code> has requested a current branch</p>
 </li>
 <li>
-<p><code>sent_get_headers</code> - set of requested block hashes from each of <code>bn</code>&apos;s peers</p>
+<p><code>sent_get_headers</code> - set of requested (level, block hash) pairs from each of <code>bn</code>&apos;s peers</p>
 </li>
 <li>
-<p><code>sent_get_ops</code> - set of requested operation hashes from each of <code>bn</code>&apos;s peers</p>
+<p><code>sent_get_ops</code> - set of requested (block hash, operation hash) pairs from each of <code>bn</code>&apos;s peers</p>
 </li>
 <li>
-<p><code>recv_branch</code> - set of samples (block hashes) received from each of <code>bn</code>&apos;s peers</p>
+<p><code>recv_branch</code> - set of samples ((level, block hash) pairs) received from each of <code>bn</code>&apos;s peers</p>
 </li>
 <li>
-<p><code>recv_header</code> - set of block headers received from each of <code>bn</code>&apos;s peers</p>
+<p><code>recv_header</code> - set of (block hash, header) pairs received from each of <code>bn</code>&apos;s peers</p>
 </li>
 <li>
-<p><code>recv_operation</code> - set of pairs of block hashes and operations received from each of <code>bn</code>&apos;s peers</p>
+<p><code>recv_operation</code> - set of (block hash, operations) pairs received from each of <code>bn</code>&apos;s peers</p>
 </li>
-</ul>
-<h4 class="mume-header" id="memoryspace">Memory/Space</h4>
-
-<ul>
-<li><code>mem_size</code> - estimated amount of memory used by <code>bn</code></li>
 </ul>
 <h3 class="mume-header" id="node">Node</h3>
 
@@ -395,30 +386,32 @@ pre[data-line] .line-highlight[data-end]:after {
 <ul>
 <li><code>n_blacklist</code> - set of blacklisted peers</li>
 <li><code>n_messages</code> - set of messages</li>
-<li><code>serving_headers</code> - headers which have been requested by bottstrapping nodes</li>
+<li><code>serving_headers</code> - headers which have been requested by bootstrapping nodes</li>
 <li><code>serving_ops</code> - operations which have been requested by bootstrapping nodes</li>
 </ul>
 <h4 class="mume-header" id="history-1">History</h4>
 
 <p>Each good node keeps a collection of each type of data sent and received:</p>
 <ul>
-<li><code>sent_branch</code> - set of peers to whom they have sent a <code>Current_branch</code> message</li>
+<li><code>sent_branch</code> - set of (level, block hash) pairs sent to each peer who has requested a <code>Current_branch</code></li>
 <li><code>sent_headers</code> - set of headers sent to each peer who has requested a <code>Block_header</code></li>
 <li><code>sent_ops</code> - set of operations sent to each peer who has requested an <code>Operation</code></li>
 <li><code>recv_get_branch</code> - set of peers who have requested the current branch</li>
-<li><code>recv_get_headers</code> - set of block hashes each peer has requested the corresponding header for</li>
-<li><code>recv_get_ops</code> - set of operation hashes each peer has requested the corresponding operation for</li>
+<li><code>recv_get_headers</code> - set of (level, block hash) pairs each peer has requested the corresponding header for</li>
+<li><code>recv_get_ops</code> - set of (block hash, operation hash) pairs each peer has requested the corresponding operation for</li>
 </ul>
-<h3 class="mume-header" id="searching-for-major-branch">Searching for major branch</h3>
+<h2 class="mume-header" id="phases">Phases</h2>
+
+<h3 class="mume-header" id="searching-for-a-major-branch">Searching for a major branch</h3>
 
 <p>The bootstrapping node has sufficiently many connections</p>
 <ul>
 <li>
 <p>Doing:</p>
 <ul>
-<li>high priority: requesting current branches from all peers</li>
-<li>low prioity: requesting block headers of received block hashes</li>
-<li>attempting to find a header that a majority of peers have in their chain</li>
+<li>requesting current branches from all peers</li>
+<li>requesting block headers of received block hashes</li>
+<li>attempting to find a header that a majority of peers claim to have in their chain</li>
 </ul>
 </li>
 <li>
@@ -432,20 +425,21 @@ pre[data-line] .line-highlight[data-end]:after {
 <h3 class="mume-header" id="validating-a-major-branch">Validating a major branch</h3>
 
 <p>The bootstrapping node has seen majority peer support for a header</p>
-<p>The bootstrapping node only needs to download each (header, operations) pair once and cross-validate against peer hashes</p>
+<p>The bootstrapping node downloads each (header, operations) pair, cross-validates against peer hashes if possible, and determines majority support before adding either to the prevalidated sets</p>
 <ul>
 <li>
 <p>Doing:</p>
 <ul>
-<li>requesting latest block headers within a suffix of the major branch</li>
+<li>requesting block headers within a suffix of the major branch</li>
 <li>requesting corresponding operations</li>
 <li>cross-validating a portion of the history</li>
-<li>enqueuing headers and operations in the pipes</li>
+<li>moving headers and operations to the prevalidated sets</li>
 </ul>
 </li>
 <li>
 <p>Not doing:</p>
 <ul>
+<li>not enqueuing headers/operations</li>
 <li>not applying blocks</li>
 </ul>
 </li>
@@ -454,8 +448,7 @@ pre[data-line] .line-highlight[data-end]:after {
 <ul>
 <li>adjust <code>current_head</code></li>
 <li>adjust level of validation phase</li>
-<li>if on the same branch, keep the same requests and add any new ones</li>
-<li>if not on the same branch, delete requests down to common branch and add new ones</li>
+<li>wil be on the same branch by majority rule, keep the same requests and add any new ones</li>
 </ul>
 <h3 class="mume-header" id="applying-blocks">Applying blocks</h3>
 
@@ -464,25 +457,17 @@ pre[data-line] .line-highlight[data-end]:after {
 <li>
 <p>Doing:</p>
 <ul>
-<li>continue enqueuing headers and operations into the pipes</li>
+<li>enqueuing headers and operations into the pipes</li>
 <li>applying blocks</li>
 </ul>
 </li>
 <li>
 <p>Not doing:</p>
 <ul>
-<li>not requesting branches</li>
-<li>not requesting headers</li>
-<li>not requesting operations</li>
+<li>not requesting any data</li>
+<li>not handling any messages</li>
 </ul>
 </li>
-</ul>
-<p>If a new major header (with higher fitness) is found during this phase:</p>
-<ul>
-<li>adjust <code>current_head</code></li>
-<li>return to validation phase</li>
-<li>if on the same branch, keep everything in the pipes and add any new headers/operations</li>
-<li>if not on the same branch, delete headers and operations in pipes down to the common branch</li>
 </ul>
 <h2 class="mume-header" id="properties">Properties</h2>
 
@@ -521,8 +506,8 @@ pre[data-line] .line-highlight[data-end]:after {
 <li>fitness is monotonic increasing</li>
 </ul>
 <pre data-role="codeBlock" data-info class="language-"><code>\A bn \in GOOD_BOOTSTRAPPING :
-  LET old_head  == current_head[bn]
-      new_head  == current_head&apos;[bn]
+  LET old_head == current_head[bn]
+      new_head == current_head&apos;[bn]
   IN
   [][ old_head /= new_head =&gt; old_head.fitness &lt; new_head.fitness ]_vars
 </code></pre><ul>
@@ -571,23 +556,16 @@ pre[data-line] .line-highlight[data-end]:after {
               /\ k &gt; l
               /\ new_head.level = k
               /\ new_phase = major_phase(1..k) ]_vars
-</code></pre><pre data-role="codeBlock" data-info class="language-"><code>\* Apply -&gt; { Major, Search }
+</code></pre><pre data-role="codeBlock" data-info class="language-"><code>\* Apply -&gt; Search
 \A bn \in GOOD_BOOTSTRAPPING :
   LET old_phase == phase[bn]
       old_head  == current_head[bn]
       new_phase == phase&apos;[bn]
       new_head  == current_head&apos;[bn]
   IN
-  \* Apply -&gt; Search
   /\ [][ /\ old_phase \in Phase_apply
          /\ new_phase /= new_phase
           =&gt; new_phase \in Phase_search \cup Phase_major ]_vars
-  \* Apply -&gt; Major
-  /\ [][ /\ old_phase \in Phase_apply
-         /\ old_phase \in Phase_major
-          =&gt;
-          /\ old_head.fitness &lt; new_head.fitness
-          /\ old_head.level &lt; new_head.level ]_vars
 </code></pre><ul>
 <li>if progress can be made, it will be</li>
 </ul>
@@ -596,16 +574,13 @@ pre[data-line] .line-highlight[data-end]:after {
   \E hd \in major_headers(bn) :
       &lt;&gt;( \/ hd = curr_hd
           \/ hd.fitness &lt; curr_hd.fitness )
-</code></pre><h2 class="mume-header" id="phase-diagram">Phase diagram</h2>
+</code></pre><h2 class="mume-header" id="inductive-invariants">Inductive invariants</h2>
 
-<p><a href="./phase_diagram.dot.svg"><img src="data:image/svg+xml;charset=utf-8;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+CjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIKICJodHRwOi8vd3d3LnczLm9yZy9HcmFwaGljcy9TVkcvMS4xL0RURC9zdmcxMS5kdGQiPgo8IS0tIEdlbmVyYXRlZCBieSBncmFwaHZpeiB2ZXJzaW9uIDIuNDAuMSAoMjAxNjEyMjUuMDMwNCkKIC0tPgo8IS0tIFRpdGxlOiBwaGFzZV9kaWFncmFtIFBhZ2VzOiAxIC0tPgo8c3ZnIHdpZHRoPSIxNzU2cHQiIGhlaWdodD0iMzE0cHQiCiB2aWV3Qm94PSIwLjAwIDAuMDAgMTc1Ni4yMSAzMTQuMDEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiPgo8ZyBpZD0iZ3JhcGgwIiBjbGFzcz0iZ3JhcGgiIHRyYW5zZm9ybT0ic2NhbGUoMSAxKSByb3RhdGUoMCkgdHJhbnNsYXRlKDQgMzEwLjAwNzEpIj4KPHRpdGxlPnBoYXNlX2RpYWdyYW08L3RpdGxlPgo8cG9seWdvbiBmaWxsPSIjZmZmZmZmIiBzdHJva2U9InRyYW5zcGFyZW50IiBwb2ludHM9Ii00LDQgLTQsLTMxMC4wMDcxIDE3NTIuMjA2NCwtMzEwLjAwNzEgMTc1Mi4yMDY0LDQgLTQsNCIvPgo8IS0tIGluaXQgLS0+CjxnIGlkPSJub2RlMSIgY2xhc3M9Im5vZGUiPgo8dGl0bGU+aW5pdDwvdGl0bGU+CjxlbGxpcHNlIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMDAwMCIgY3g9IjI3IiBjeT0iLTcwLjAwMzYiIHJ4PSIyNyIgcnk9IjE4Ii8+Cjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjI3IiB5PSItNjYuMzAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj5pbml0PC90ZXh0Pgo8L2c+CjwhLS0gc2VhcmNoIC0tPgo8ZyBpZD0ibm9kZTIiIGNsYXNzPSJub2RlIj4KPHRpdGxlPnNlYXJjaDwvdGl0bGU+CjxnIGlkPSJhX25vZGUyIj48YSB4bGluazpocmVmPSIuL25vZGVfZmlsZXMvc2VhcmNoaW5nX2Zvcl9tYWpvcl9icmFuY2guaHRtbCIgeGxpbms6dGl0bGU9InNlYXJjaGluZyBmb3IgbWFqb3IgYnJhbmNoXG53aXRoIGhpZ2hlciBmaXRuZXNzIHRoYW4gY3VycmVudCBicmFuY2hcblxubWVzc2FnZXM6XG5vdXQ6IEdldF9jdXJyZW50X2JyYW5jaCwgR2V0X2Jsb2NrX2hlYWRlcnNcbGluOiBDdXJyZW50X2JyYW5jaCwgQmxvY2tfaGVhZGVyXGwiPgo8ZWxsaXBzZSBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIGN4PSIzODguNzA5MiIgY3k9Ii03MC4wMDM2IiByeD0iMjM5LjkxODYiIHJ5PSI3MC4wMDcxIi8+Cjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjM4OC43MDkyIiB5PSItMTA0LjMwMzYiIGZvbnQtZmFtaWx5PSJUaW1lcyxzZXJpZiIgZm9udC1zaXplPSIxNC4wMCIgZmlsbD0iIzAwMDAwMCI+c2VhcmNoaW5nIGZvciBtYWpvciBicmFuY2g8L3RleHQ+Cjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjM4OC43MDkyIiB5PSItODkuMzAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj53aXRoIGhpZ2hlciBmaXRuZXNzIHRoYW4gY3VycmVudCBicmFuY2g8L3RleHQ+Cjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjM4OC43MDkyIiB5PSItNTguMzAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj5tZXNzYWdlczo8L3RleHQ+Cjx0ZXh0IHRleHQtYW5jaG9yPSJzdGFydCIgeD0iMjI3LjIwOTIiIHk9Ii00My4zMDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPm91dDogR2V0X2N1cnJlbnRfYnJhbmNoLCBHZXRfYmxvY2tfaGVhZGVyczwvdGV4dD4KPHRleHQgdGV4dC1hbmNob3I9InN0YXJ0IiB4PSIyMjcuMjA5MiIgeT0iLTI4LjMwMzYiIGZvbnQtZmFtaWx5PSJUaW1lcyxzZXJpZiIgZm9udC1zaXplPSIxNC4wMCIgZmlsbD0iIzAwMDAwMCI+aW46IEN1cnJlbnRfYnJhbmNoLCBCbG9ja19oZWFkZXI8L3RleHQ+CjwvYT4KPC9nPgo8L2c+CjwhLS0gaW5pdCYjNDU7Jmd0O3NlYXJjaCAtLT4KPGcgaWQ9ImVkZ2UxIiBjbGFzcz0iZWRnZSI+Cjx0aXRsZT5pbml0JiM0NTsmZ3Q7c2VhcmNoPC90aXRsZT4KPGcgaWQ9ImFfZWRnZTEiPjxhIHhsaW5rOmhyZWY9Ii4vZWRnZV9maWxlcy9jb25uZWN0X3RvX3BlZXJzLmh0bWwiIHhsaW5rOnRpdGxlPSJjb25uZWN0XG50byBwZWVycyI+CjxwYXRoIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMDAwMCIgZD0iTTU0LjE4NywtNzAuMDAzNkM3NC41MjM4LC03MC4wMDM2IDEwNC41Nzk1LC03MC4wMDM2IDEzOC40NjYxLC03MC4wMDM2Ii8+Cjxwb2x5Z29uIGZpbGw9IiMwMDAwMDAiIHN0cm9rZT0iIzAwMDAwMCIgcG9pbnRzPSIxMzguNjA3NiwtNzMuNTAzNyAxNDguNjA3NSwtNzAuMDAzNiAxMzguNjA3NSwtNjYuNTAzNyAxMzguNjA3NiwtNzMuNTAzNyIvPgo8L2E+CjwvZz4KPGcgaWQ9ImFfZWRnZTEmIzQ1O2xhYmVsIj48YSB4bGluazpocmVmPSIuL2VkZ2VfZmlsZXMvY29ubmVjdF90b19wZWVycy5odG1sIiB4bGluazp0aXRsZT0iY29ubmVjdFxudG8gcGVlcnMiPgo8dGV4dCB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB4PSIxMDEuNSIgeT0iLTg4LjgwMzYiIGZvbnQtZmFtaWx5PSJUaW1lcyxzZXJpZiIgZm9udC1zaXplPSIxNC4wMCIgZmlsbD0iIzAwMDAwMCI+Y29ubmVjdDwvdGV4dD4KPHRleHQgdGV4dC1hbmNob3I9Im1pZGRsZSIgeD0iMTAxLjUiIHk9Ii03My44MDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPnRvIHBlZXJzPC90ZXh0Pgo8L2E+CjwvZz4KPC9nPgo8IS0tIG1ham9yIC0tPgo8ZyBpZD0ibm9kZTMiIGNsYXNzPSJub2RlIj4KPHRpdGxlPm1ham9yPC90aXRsZT4KPGcgaWQ9ImFfbm9kZTMiPjxhIHhsaW5rOmhyZWY9Ii4vbm9kZV9maWxlcy92YWxpZGF0aW5nX21ham9yX2JyYW5jaC5odG1sIiB4bGluazp0aXRsZT0idmFsaWRhdGluZyBtYWpvciBicmFuY2hcbmFuZCBlbnF1ZXVpbmcgYmxvY2sgZGF0YVxuXG5tZXNzYWdlczpcbm91dDogR2V0X2Jsb2NrX2hlYWRlcnMsIEdldF9vcGVyYXRpb25zXGxpbjogQ3VycmVudF9icmFuY2gsIEJsb2NrX2hlYWRlciwgT3BlcmF0aW9uXGwiPgo8ZWxsaXBzZSBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIGN4PSIxMDA0LjgzNDciIGN5PSItMTg4LjAwMzYiIHJ4PSIyNDAuMzMyNiIgcnk9IjcwLjAwNzEiLz4KPHRleHQgdGV4dC1hbmNob3I9Im1pZGRsZSIgeD0iMTAwNC44MzQ3IiB5PSItMjIyLjMwMzYiIGZvbnQtZmFtaWx5PSJUaW1lcyxzZXJpZiIgZm9udC1zaXplPSIxNC4wMCIgZmlsbD0iIzAwMDAwMCI+dmFsaWRhdGluZyBtYWpvciBicmFuY2g8L3RleHQ+Cjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjEwMDQuODM0NyIgeT0iLTIwNy4zMDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPmFuZCBlbnF1ZXVpbmcgYmxvY2sgZGF0YTwvdGV4dD4KPHRleHQgdGV4dC1hbmNob3I9Im1pZGRsZSIgeD0iMTAwNC44MzQ3IiB5PSItMTc2LjMwMzYiIGZvbnQtZmFtaWx5PSJUaW1lcyxzZXJpZiIgZm9udC1zaXplPSIxNC4wMCIgZmlsbD0iIzAwMDAwMCI+bWVzc2FnZXM6PC90ZXh0Pgo8dGV4dCB0ZXh0LWFuY2hvcj0ic3RhcnQiIHg9Ijg0Mi44MzQ3IiB5PSItMTYxLjMwMzYiIGZvbnQtZmFtaWx5PSJUaW1lcyxzZXJpZiIgZm9udC1zaXplPSIxNC4wMCIgZmlsbD0iIzAwMDAwMCI+b3V0OiBHZXRfYmxvY2tfaGVhZGVycywgR2V0X29wZXJhdGlvbnM8L3RleHQ+Cjx0ZXh0IHRleHQtYW5jaG9yPSJzdGFydCIgeD0iODQyLjgzNDciIHk9Ii0xNDYuMzAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj5pbjogQ3VycmVudF9icmFuY2gsIEJsb2NrX2hlYWRlciwgT3BlcmF0aW9uPC90ZXh0Pgo8L2E+CjwvZz4KPC9nPgo8IS0tIHNlYXJjaCYjNDU7Jmd0O21ham9yIC0tPgo8ZyBpZD0iZWRnZTIiIGNsYXNzPSJlZGdlIj4KPHRpdGxlPnNlYXJjaCYjNDU7Jmd0O21ham9yPC90aXRsZT4KPGcgaWQ9ImFfZWRnZTIiPjxhIHhsaW5rOmhyZWY9Ii4vZWRnZV9maWxlcy9mb3VuZF9tYWpvcl9icmFuY2guaHRtbCIgeGxpbms6dGl0bGU9ImZvdW5kIG1ham9yXG5icmFuY2ggd2l0aFxuaGlnaGVyIGZpdG5lc3MiPgo8cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIGQ9Ik01ODkuMTczMiwtMTA4LjM5NjNDNjU0LjY2MDgsLTEyMC45Mzg1IDcyNy41Njc2LC0xMzQuOTAxNSA3OTMuODA4LC0xNDcuNTg3OSIvPgo8cG9seWdvbiBmaWxsPSIjMDAwMDAwIiBzdHJva2U9IiMwMDAwMDAiIHBvaW50cz0iNzkzLjQ3NDgsLTE1MS4wODc2IDgwMy45NTQ3LC0xNDkuNTMxMSA3OTQuNzkxNiwtMTQ0LjIxMjUgNzkzLjQ3NDgsLTE1MS4wODc2Ii8+CjwvYT4KPC9nPgo8ZyBpZD0iYV9lZGdlMiYjNDU7bGFiZWwiPjxhIHhsaW5rOmhyZWY9Ii4vZWRnZV9maWxlcy9mb3VuZF9tYWpvcl9icmFuY2guaHRtbCIgeGxpbms6dGl0bGU9ImZvdW5kIG1ham9yXG5icmFuY2ggd2l0aFxuaGlnaGVyIGZpdG5lc3MiPgo8dGV4dCB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB4PSI2OTYuNDE4NCIgeT0iLTE2OS44MDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPmZvdW5kIG1ham9yPC90ZXh0Pgo8dGV4dCB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB4PSI2OTYuNDE4NCIgeT0iLTE1NC44MDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPmJyYW5jaCB3aXRoPC90ZXh0Pgo8dGV4dCB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB4PSI2OTYuNDE4NCIgeT0iLTEzOS44MDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPmhpZ2hlciBmaXRuZXNzPC90ZXh0Pgo8L2E+CjwvZz4KPC9nPgo8IS0tIG1ham9yJiM0NTsmZ3Q7bWFqb3IgLS0+CjxnIGlkPSJlZGdlMyIgY2xhc3M9ImVkZ2UiPgo8dGl0bGU+bWFqb3ImIzQ1OyZndDttYWpvcjwvdGl0bGU+CjxnIGlkPSJhX2VkZ2UzIj48YSB4bGluazpocmVmPSIuL2VkZ2VfZmlsZXMvbmV3X21ham9yX2JyYW5jaC5odG1sIiB4bGluazp0aXRsZT0ibmV3IG1ham9yIGJyYW5jaCB3aXRoXG5oaWdoZXIgZml0bmVzcyBmb3VuZCI+CjxwYXRoIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMDAwMCIgZD0iTTk1MC45MjMyLC0yNTYuMjY2NEM5NTguMjksLTI2Ny45Mjc4IDk3Ni4yNjA1LC0yNzYuMDA3MSAxMDA0LjgzNDcsLTI3Ni4wMDcxIDEwMjYuNzExOCwtMjc2LjAwNzEgMTA0Mi4zNzMzLC0yNzEuMjcxMiAxMDUxLjgxOSwtMjYzLjgxNzYiLz4KPHBvbHlnb24gZmlsbD0iIzAwMDAwMCIgc3Ryb2tlPSIjMDAwMDAwIiBwb2ludHM9IjEwNTQuNTY1MywtMjY2LjAwMTQgMTA1OC43NDYyLC0yNTYuMjY2NCAxMDQ5LjQwNywtMjYxLjI2OTQgMTA1NC41NjUzLC0yNjYuMDAxNCIvPgo8L2E+CjwvZz4KPGcgaWQ9ImFfZWRnZTMmIzQ1O2xhYmVsIj48YSB4bGluazpocmVmPSIuL2VkZ2VfZmlsZXMvbmV3X21ham9yX2JyYW5jaC5odG1sIiB4bGluazp0aXRsZT0ibmV3IG1ham9yIGJyYW5jaCB3aXRoXG5oaWdoZXIgZml0bmVzcyBmb3VuZCI+Cjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjEwMDQuODM0NyIgeT0iLTI5NC44MDcxIiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPm5ldyBtYWpvciBicmFuY2ggd2l0aDwvdGV4dD4KPHRleHQgdGV4dC1hbmNob3I9Im1pZGRsZSIgeD0iMTAwNC44MzQ3IiB5PSItMjc5LjgwNzEiIGZvbnQtZmFtaWx5PSJUaW1lcyxzZXJpZiIgZm9udC1zaXplPSIxNC4wMCIgZmlsbD0iIzAwMDAwMCI+aGlnaGVyIGZpdG5lc3MgZm91bmQ8L3RleHQ+CjwvYT4KPC9nPgo8L2c+CjwhLS0gYXBwbHkgLS0+CjxnIGlkPSJub2RlNCIgY2xhc3M9Im5vZGUiPgo8dGl0bGU+YXBwbHk8L3RpdGxlPgo8ZyBpZD0iYV9ub2RlNCI+PGEgeGxpbms6aHJlZj0iLi9ub2RlX2ZpbGVzL2FwcGx5aW5nX2Jsb2Nrcy5odG1sIiB4bGluazp0aXRsZT0iYXBwbHlpbmcgYmxvY2tzIHRvIGVucXVldWVkXG5oZWFkZXJzIGFuZCBvcGVyYXRpb25zXG5cbm1lc3NhZ2VzOlxubm8gbWVzc2FnZXMgYXJlIHByb2Nlc3NlZCI+CjxlbGxpcHNlIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMDAwMCIgY3g9IjE1OTEuMjI4NyIgY3k9Ii03MC4wMDM2IiByeD0iMTU2Ljk1NTQiIHJ5PSI1OS4yOTQxIi8+Cjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjE1OTEuMjI4NyIgeT0iLTk2LjgwMzYiIGZvbnQtZmFtaWx5PSJUaW1lcyxzZXJpZiIgZm9udC1zaXplPSIxNC4wMCIgZmlsbD0iIzAwMDAwMCI+YXBwbHlpbmcgYmxvY2tzIHRvIGVucXVldWVkPC90ZXh0Pgo8dGV4dCB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB4PSIxNTkxLjIyODciIHk9Ii04MS44MDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPmhlYWRlcnMgYW5kIG9wZXJhdGlvbnM8L3RleHQ+Cjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjE1OTEuMjI4NyIgeT0iLTUwLjgwMzYiIGZvbnQtZmFtaWx5PSJUaW1lcyxzZXJpZiIgZm9udC1zaXplPSIxNC4wMCIgZmlsbD0iIzAwMDAwMCI+bWVzc2FnZXM6PC90ZXh0Pgo8dGV4dCB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB4PSIxNTkxLjIyODciIHk9Ii0zNS44MDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPm5vIG1lc3NhZ2VzIGFyZSBwcm9jZXNzZWQ8L3RleHQ+CjwvYT4KPC9nPgo8L2c+CjwhLS0gbWFqb3ImIzQ1OyZndDthcHBseSAtLT4KPGcgaWQ9ImVkZ2U0IiBjbGFzcz0iZWRnZSI+Cjx0aXRsZT5tYWpvciYjNDU7Jmd0O2FwcGx5PC90aXRsZT4KPGcgaWQ9ImFfZWRnZTQiPjxhIHhsaW5rOmhyZWY9Ii4vZWRnZV9maWxlcy9lbnF1ZXVlLmh0bWwiIHhsaW5rOnRpdGxlPSJmaW5pc2hlZCBkb3dubG9hZGluZ1xuYmxvY2sgZGF0YSI+CjxwYXRoIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMDAwMCIgZD0iTTEyMDIuOTUyMSwtMTQ4LjEzNjRDMTI4MS4yMDI2LC0xMzIuMzkwMSAxMzY5LjU4NTUsLTExNC42MDQ4IDE0NDIuMjM3OSwtOTkuOTg1Ii8+Cjxwb2x5Z29uIGZpbGw9IiMwMDAwMDAiIHN0cm9rZT0iIzAwMDAwMCIgcG9pbnRzPSIxNDQzLjI2OTMsLTEwMy4zNDc3IDE0NTIuMzgyMywtOTcuOTQzNiAxNDQxLjg4ODQsLTk2LjQ4NTIgMTQ0My4yNjkzLC0xMDMuMzQ3NyIvPgo8L2E+CjwvZz4KPGcgaWQ9ImFfZWRnZTQmIzQ1O2xhYmVsIj48YSB4bGluazpocmVmPSIuL2VkZ2VfZmlsZXMvZW5xdWV1ZS5odG1sIiB4bGluazp0aXRsZT0iZmluaXNoZWQgZG93bmxvYWRpbmdcbmJsb2NrIGRhdGEiPgo8dGV4dCB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB4PSIxMzM5Ljc1MSIgeT0iLTE1MC44MDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPmZpbmlzaGVkIGRvd25sb2FkaW5nPC90ZXh0Pgo8dGV4dCB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB4PSIxMzM5Ljc1MSIgeT0iLTEzNS44MDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPmJsb2NrIGRhdGE8L3RleHQ+CjwvYT4KPC9nPgo8L2c+CjwhLS0gYXBwbHkmIzQ1OyZndDtzZWFyY2ggLS0+CjxnIGlkPSJlZGdlNSIgY2xhc3M9ImVkZ2UiPgo8dGl0bGU+YXBwbHkmIzQ1OyZndDtzZWFyY2g8L3RpdGxlPgo8ZyBpZD0iYV9lZGdlNSI+PGEgeGxpbms6aHJlZj0iLi9lZGdlX2ZpbGVzL2FwcGxpZWRfYmxvY2tzLmh0bWwiIHhsaW5rOnRpdGxlPSJcbnN1Y2Nlc3NmdWxseSBhcHBsaWVkXG5hbGwgZW5xdWV1ZWQgYmxvY2tzIj4KPHBhdGggZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwMDAwIiBkPSJNMTQzNC41MTAxLC02Ni4xNjE5QzEzNzUuMjIwNCwtNjQuODg0OSAxMzA3LjEyOCwtNjMuNjI5NSAxMjQ1LjI1MSwtNjMuMDAzNiAxMDMxLjU1ODYsLTYwLjg0MiA5NzguMTEyNSwtNjEuMDEzIDc2NC40MTg0LC02My4wMDM2IDcyMy41NzY5LC02My4zODQgNjgwLjI0MTQsLTYzLjk5NyA2MzguMDc0MiwtNjQuNzA2MSIvPgo8cG9seWdvbiBmaWxsPSIjMDAwMDAwIiBzdHJva2U9IiMwMDAwMDAiIHBvaW50cz0iNjM3Ljg5NjEsLTYxLjIwODUgNjI3Ljk1NzIsLTY0Ljg3ODQgNjM4LjAxNTQsLTY4LjIwNzUgNjM3Ljg5NjEsLTYxLjIwODUiLz4KPC9hPgo8L2c+CjxnIGlkPSJhX2VkZ2U1JiM0NTtsYWJlbCI+PGEgeGxpbms6aHJlZj0iLi9lZGdlX2ZpbGVzL2FwcGxpZWRfYmxvY2tzLmh0bWwiIHhsaW5rOnRpdGxlPSJcbnN1Y2Nlc3NmdWxseSBhcHBsaWVkXG5hbGwgZW5xdWV1ZWQgYmxvY2tzIj4KPHRleHQgdGV4dC1hbmNob3I9Im1pZGRsZSIgeD0iMTAwNC44MzQ3IiB5PSItODEuODAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj5zdWNjZXNzZnVsbHkgYXBwbGllZDwvdGV4dD4KPHRleHQgdGV4dC1hbmNob3I9Im1pZGRsZSIgeD0iMTAwNC44MzQ3IiB5PSItNjYuODAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj5hbGwgZW5xdWV1ZWQgYmxvY2tzPC90ZXh0Pgo8L2E+CjwvZz4KPC9nPgo8L2c+Cjwvc3ZnPgo=" alt></a></p>
-<h2 class="mume-header" id="performance">Performance</h2>
+<p>An <em>inductive invariant</em> is a special type of invariant that respects induction, i.e. if the property holds in the initial state and the n-th state, then it will hold again in the (n + 1)-th state.</p>
+<p>We like to formulate safety properties as inductive invariants and use the symbolic model checker for TLA+, <a href="https://apalache.informal.systems/">Apalache</a>, to verify them.</p>
+<h2 class="mume-header" id="phase-diagram">Phase diagram</h2>
 
-<h3 class="mume-header" id="memory">Memory</h3>
-
-<ul>
-<li>will ultimately include memory usage estimates in specification and utilize model checking to improve performance</li>
-</ul>
+<p><a href="./phase_diagram_vertical.dot.svg"><img src="data:image/svg+xml;charset=utf-8;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+CjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIKICJodHRwOi8vd3d3LnczLm9yZy9HcmFwaGljcy9TVkcvMS4xL0RURC9zdmcxMS5kdGQiPgo8IS0tIEdlbmVyYXRlZCBieSBncmFwaHZpeiB2ZXJzaW9uIDIuNDAuMSAoMjAxNjEyMjUuMDMwNCkKIC0tPgo8IS0tIFRpdGxlOiBwaGFzZV9kaWFncmFtIFBhZ2VzOiAxIC0tPgo8c3ZnIHdpZHRoPSIxNzY1cHQiIGhlaWdodD0iMzE0cHQiCiB2aWV3Qm94PSIwLjAwIDAuMDAgMTc2NS4yMSAzMTQuMDEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiPgo8ZyBpZD0iZ3JhcGgwIiBjbGFzcz0iZ3JhcGgiIHRyYW5zZm9ybT0ic2NhbGUoMSAxKSByb3RhdGUoMCkgdHJhbnNsYXRlKDQgMzEwLjAwNzEpIj4KPHRpdGxlPnBoYXNlX2RpYWdyYW08L3RpdGxlPgo8cG9seWdvbiBmaWxsPSIjZmZmZmZmIiBzdHJva2U9InRyYW5zcGFyZW50IiBwb2ludHM9Ii00LDQgLTQsLTMxMC4wMDcxIDE3NjEuMjA2NCwtMzEwLjAwNzEgMTc2MS4yMDY0LDQgLTQsNCIvPgo8IS0tIGluaXQgLS0+CjxnIGlkPSJub2RlMSIgY2xhc3M9Im5vZGUiPgo8dGl0bGU+aW5pdDwvdGl0bGU+CjxlbGxpcHNlIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMDAwMCIgY3g9IjI3IiBjeT0iLTcwLjAwMzYiIHJ4PSIyNyIgcnk9IjE4Ii8+Cjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjI3IiB5PSItNjYuMzAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj5pbml0PC90ZXh0Pgo8L2c+CjwhLS0gc2VhcmNoIC0tPgo8ZyBpZD0ibm9kZTIiIGNsYXNzPSJub2RlIj4KPHRpdGxlPnNlYXJjaDwvdGl0bGU+CjxnIGlkPSJhX25vZGUyIj48YSB4bGluazpocmVmPSIuL25vZGVfZmlsZXMvc2VhcmNoaW5nX2Zvcl9tYWpvcl9icmFuY2guaHRtbCIgeGxpbms6dGl0bGU9InNlYXJjaGluZyBmb3IgbWFqb3IgYnJhbmNoXG53aXRoIGhpZ2hlciBmaXRuZXNzIHRoYW4gY3VycmVudCBicmFuY2hcblxubWVzc2FnZXM6XG5vdXQ6IEdldF9jdXJyZW50X2JyYW5jaCwgR2V0X2Jsb2NrX2hlYWRlcnNcbGluOiBDdXJyZW50X2JyYW5jaCwgQmxvY2tfaGVhZGVyXGwiPgo8ZWxsaXBzZSBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIGN4PSIzOTcuNzA5MiIgY3k9Ii03MC4wMDM2IiByeD0iMjM5LjkxODYiIHJ5PSI3MC4wMDcxIi8+Cjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjM5Ny43MDkyIiB5PSItMTA0LjMwMzYiIGZvbnQtZmFtaWx5PSJUaW1lcyxzZXJpZiIgZm9udC1zaXplPSIxNC4wMCIgZmlsbD0iIzAwMDAwMCI+c2VhcmNoaW5nIGZvciBtYWpvciBicmFuY2g8L3RleHQ+Cjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjM5Ny43MDkyIiB5PSItODkuMzAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj53aXRoIGhpZ2hlciBmaXRuZXNzIHRoYW4gY3VycmVudCBicmFuY2g8L3RleHQ+Cjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjM5Ny43MDkyIiB5PSItNTguMzAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj5tZXNzYWdlczo8L3RleHQ+Cjx0ZXh0IHRleHQtYW5jaG9yPSJzdGFydCIgeD0iMjM2LjIwOTIiIHk9Ii00My4zMDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPm91dDogR2V0X2N1cnJlbnRfYnJhbmNoLCBHZXRfYmxvY2tfaGVhZGVyczwvdGV4dD4KPHRleHQgdGV4dC1hbmNob3I9InN0YXJ0IiB4PSIyMzYuMjA5MiIgeT0iLTI4LjMwMzYiIGZvbnQtZmFtaWx5PSJUaW1lcyxzZXJpZiIgZm9udC1zaXplPSIxNC4wMCIgZmlsbD0iIzAwMDAwMCI+aW46IEN1cnJlbnRfYnJhbmNoLCBCbG9ja19oZWFkZXI8L3RleHQ+CjwvYT4KPC9nPgo8L2c+CjwhLS0gaW5pdCYjNDU7Jmd0O3NlYXJjaCAtLT4KPGcgaWQ9ImVkZ2UxIiBjbGFzcz0iZWRnZSI+Cjx0aXRsZT5pbml0JiM0NTsmZ3Q7c2VhcmNoPC90aXRsZT4KPGcgaWQ9ImFfZWRnZTEiPjxhIHhsaW5rOmhyZWY9Ii4vZWRnZV9maWxlcy9jb25uZWN0X3RvX3BlZXJzLmh0bWwiIHhsaW5rOnRpdGxlPSIgJiMxNjA7Y29ubmVjdFxuICYjMTYwO3RvIHBlZXJzIj4KPHBhdGggZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwMDAwIiBkPSJNNTQuMjU5MSwtNzAuMDAzNkM3Ni4zNjIsLTcwLjAwMzYgMTA5Ljk0NSwtNzAuMDAzNiAxNDcuNjA2OSwtNzAuMDAzNiIvPgo8cG9seWdvbiBmaWxsPSIjMDAwMDAwIiBzdHJva2U9IiMwMDAwMDAiIHBvaW50cz0iMTQ3Ljc5NiwtNzMuNTAzNyAxNTcuNzk2LC03MC4wMDM2IDE0Ny43OTU5LC02Ni41MDM3IDE0Ny43OTYsLTczLjUwMzciLz4KPC9hPgo8L2c+CjxnIGlkPSJhX2VkZ2UxJiM0NTtsYWJlbCI+PGEgeGxpbms6aHJlZj0iLi9lZGdlX2ZpbGVzL2Nvbm5lY3RfdG9fcGVlcnMuaHRtbCIgeGxpbms6dGl0bGU9IiAmIzE2MDtjb25uZWN0XG4gJiMxNjA7dG8gcGVlcnMiPgo8dGV4dCB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB4PSIxMDYiIHk9Ii04OC44MDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPiAmIzE2MDtjb25uZWN0PC90ZXh0Pgo8dGV4dCB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB4PSIxMDYiIHk9Ii03My44MDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPiAmIzE2MDt0byBwZWVyczwvdGV4dD4KPC9hPgo8L2c+CjwvZz4KPCEtLSBtYWpvciAtLT4KPGcgaWQ9Im5vZGUzIiBjbGFzcz0ibm9kZSI+Cjx0aXRsZT5tYWpvcjwvdGl0bGU+CjxnIGlkPSJhX25vZGUzIj48YSB4bGluazpocmVmPSIuL25vZGVfZmlsZXMvdmFsaWRhdGluZ19tYWpvcl9icmFuY2guaHRtbCIgeGxpbms6dGl0bGU9InZhbGlkYXRpbmcgbWFqb3IgYnJhbmNoXG5hbmQgZW5xdWV1aW5nIGJsb2NrIGRhdGFcblxubWVzc2FnZXM6XG5vdXQ6IEdldF9ibG9ja19oZWFkZXJzLCBHZXRfb3BlcmF0aW9uc1xsaW46IEN1cnJlbnRfYnJhbmNoLCBCbG9ja19oZWFkZXIsIE9wZXJhdGlvblxsIj4KPGVsbGlwc2UgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwMDAwIiBjeD0iMTAxMy44MzQ3IiBjeT0iLTE4OC4wMDM2IiByeD0iMjQwLjMzMjYiIHJ5PSI3MC4wMDcxIi8+Cjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjEwMTMuODM0NyIgeT0iLTIyMi4zMDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPnZhbGlkYXRpbmcgbWFqb3IgYnJhbmNoPC90ZXh0Pgo8dGV4dCB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB4PSIxMDEzLjgzNDciIHk9Ii0yMDcuMzAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj5hbmQgZW5xdWV1aW5nIGJsb2NrIGRhdGE8L3RleHQ+Cjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjEwMTMuODM0NyIgeT0iLTE3Ni4zMDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPm1lc3NhZ2VzOjwvdGV4dD4KPHRleHQgdGV4dC1hbmNob3I9InN0YXJ0IiB4PSI4NTEuODM0NyIgeT0iLTE2MS4zMDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPm91dDogR2V0X2Jsb2NrX2hlYWRlcnMsIEdldF9vcGVyYXRpb25zPC90ZXh0Pgo8dGV4dCB0ZXh0LWFuY2hvcj0ic3RhcnQiIHg9Ijg1MS44MzQ3IiB5PSItMTQ2LjMwMzYiIGZvbnQtZmFtaWx5PSJUaW1lcyxzZXJpZiIgZm9udC1zaXplPSIxNC4wMCIgZmlsbD0iIzAwMDAwMCI+aW46IEN1cnJlbnRfYnJhbmNoLCBCbG9ja19oZWFkZXIsIE9wZXJhdGlvbjwvdGV4dD4KPC9hPgo8L2c+CjwvZz4KPCEtLSBzZWFyY2gmIzQ1OyZndDttYWpvciAtLT4KPGcgaWQ9ImVkZ2UyIiBjbGFzcz0iZWRnZSI+Cjx0aXRsZT5zZWFyY2gmIzQ1OyZndDttYWpvcjwvdGl0bGU+CjxnIGlkPSJhX2VkZ2UyIj48YSB4bGluazpocmVmPSIuL2VkZ2VfZmlsZXMvZm91bmRfbWFqb3JfYnJhbmNoLmh0bWwiIHhsaW5rOnRpdGxlPSJmb3VuZCBtYWpvclxuYnJhbmNoIHdpdGhcbmhpZ2hlciBmaXRuZXNzIj4KPHBhdGggZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwMDAwIiBkPSJNNTk4LjE3MzIsLTEwOC4zOTYzQzY2My42NjA4LC0xMjAuOTM4NSA3MzYuNTY3NiwtMTM0LjkwMTUgODAyLjgwOCwtMTQ3LjU4NzkiLz4KPHBvbHlnb24gZmlsbD0iIzAwMDAwMCIgc3Ryb2tlPSIjMDAwMDAwIiBwb2ludHM9IjgwMi40NzQ4LC0xNTEuMDg3NiA4MTIuOTU0NywtMTQ5LjUzMTEgODAzLjc5MTYsLTE0NC4yMTI1IDgwMi40NzQ4LC0xNTEuMDg3NiIvPgo8L2E+CjwvZz4KPGcgaWQ9ImFfZWRnZTImIzQ1O2xhYmVsIj48YSB4bGluazpocmVmPSIuL2VkZ2VfZmlsZXMvZm91bmRfbWFqb3JfYnJhbmNoLmh0bWwiIHhsaW5rOnRpdGxlPSJmb3VuZCBtYWpvclxuYnJhbmNoIHdpdGhcbmhpZ2hlciBmaXRuZXNzIj4KPHRleHQgdGV4dC1hbmNob3I9Im1pZGRsZSIgeD0iNzA1LjQxODQiIHk9Ii0xNjkuODAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj5mb3VuZCBtYWpvcjwvdGV4dD4KPHRleHQgdGV4dC1hbmNob3I9Im1pZGRsZSIgeD0iNzA1LjQxODQiIHk9Ii0xNTQuODAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj5icmFuY2ggd2l0aDwvdGV4dD4KPHRleHQgdGV4dC1hbmNob3I9Im1pZGRsZSIgeD0iNzA1LjQxODQiIHk9Ii0xMzkuODAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj5oaWdoZXIgZml0bmVzczwvdGV4dD4KPC9hPgo8L2c+CjwvZz4KPCEtLSBtYWpvciYjNDU7Jmd0O21ham9yIC0tPgo8ZyBpZD0iZWRnZTMiIGNsYXNzPSJlZGdlIj4KPHRpdGxlPm1ham9yJiM0NTsmZ3Q7bWFqb3I8L3RpdGxlPgo8ZyBpZD0iYV9lZGdlMyI+PGEgeGxpbms6aHJlZj0iLi9lZGdlX2ZpbGVzL25ld19tYWpvcl9icmFuY2guaHRtbCIgeGxpbms6dGl0bGU9Im5ldyBtYWpvciBicmFuY2ggd2l0aFxuaGlnaGVyIGZpdG5lc3MgZm91bmQiPgo8cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIGQ9Ik05NTkuOTIzMiwtMjU2LjI2NjRDOTY3LjI5LC0yNjcuOTI3OCA5ODUuMjYwNSwtMjc2LjAwNzEgMTAxMy44MzQ3LC0yNzYuMDA3MSAxMDM1LjcxMTgsLTI3Ni4wMDcxIDEwNTEuMzczMywtMjcxLjI3MTIgMTA2MC44MTksLTI2My44MTc2Ii8+Cjxwb2x5Z29uIGZpbGw9IiMwMDAwMDAiIHN0cm9rZT0iIzAwMDAwMCIgcG9pbnRzPSIxMDYzLjU2NTMsLTI2Ni4wMDE0IDEwNjcuNzQ2MiwtMjU2LjI2NjQgMTA1OC40MDcsLTI2MS4yNjk0IDEwNjMuNTY1MywtMjY2LjAwMTQiLz4KPC9hPgo8L2c+CjxnIGlkPSJhX2VkZ2UzJiM0NTtsYWJlbCI+PGEgeGxpbms6aHJlZj0iLi9lZGdlX2ZpbGVzL25ld19tYWpvcl9icmFuY2guaHRtbCIgeGxpbms6dGl0bGU9Im5ldyBtYWpvciBicmFuY2ggd2l0aFxuaGlnaGVyIGZpdG5lc3MgZm91bmQiPgo8dGV4dCB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB4PSIxMDEzLjgzNDciIHk9Ii0yOTQuODA3MSIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj5uZXcgbWFqb3IgYnJhbmNoIHdpdGg8L3RleHQ+Cjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjEwMTMuODM0NyIgeT0iLTI3OS44MDcxIiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPmhpZ2hlciBmaXRuZXNzIGZvdW5kPC90ZXh0Pgo8L2E+CjwvZz4KPC9nPgo8IS0tIGFwcGx5IC0tPgo8ZyBpZD0ibm9kZTQiIGNsYXNzPSJub2RlIj4KPHRpdGxlPmFwcGx5PC90aXRsZT4KPGcgaWQ9ImFfbm9kZTQiPjxhIHhsaW5rOmhyZWY9Ii4vbm9kZV9maWxlcy9hcHBseWluZ19ibG9ja3MuaHRtbCIgeGxpbms6dGl0bGU9ImFwcGx5aW5nIGJsb2NrcyB0byBlbnF1ZXVlZFxuaGVhZGVycyBhbmQgb3BlcmF0aW9uc1xuXG5tZXNzYWdlczpcbm5vIG1lc3NhZ2VzIGFyZSBwcm9jZXNzZWQiPgo8ZWxsaXBzZSBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIGN4PSIxNjAwLjIyODciIGN5PSItNzAuMDAzNiIgcng9IjE1Ni45NTU0IiByeT0iNTkuMjk0MSIvPgo8dGV4dCB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB4PSIxNjAwLjIyODciIHk9Ii05Ni44MDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPmFwcGx5aW5nIGJsb2NrcyB0byBlbnF1ZXVlZDwvdGV4dD4KPHRleHQgdGV4dC1hbmNob3I9Im1pZGRsZSIgeD0iMTYwMC4yMjg3IiB5PSItODEuODAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj5oZWFkZXJzIGFuZCBvcGVyYXRpb25zPC90ZXh0Pgo8dGV4dCB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB4PSIxNjAwLjIyODciIHk9Ii01MC44MDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPm1lc3NhZ2VzOjwvdGV4dD4KPHRleHQgdGV4dC1hbmNob3I9Im1pZGRsZSIgeD0iMTYwMC4yMjg3IiB5PSItMzUuODAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj5ubyBtZXNzYWdlcyBhcmUgcHJvY2Vzc2VkPC90ZXh0Pgo8L2E+CjwvZz4KPC9nPgo8IS0tIG1ham9yJiM0NTsmZ3Q7YXBwbHkgLS0+CjxnIGlkPSJlZGdlNCIgY2xhc3M9ImVkZ2UiPgo8dGl0bGU+bWFqb3ImIzQ1OyZndDthcHBseTwvdGl0bGU+CjxnIGlkPSJhX2VkZ2U0Ij48YSB4bGluazpocmVmPSIuL2VkZ2VfZmlsZXMvZW5xdWV1ZS5odG1sIiB4bGluazp0aXRsZT0iZmluaXNoZWQgZG93bmxvYWRpbmdcbmJsb2NrIGRhdGEiPgo8cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIGQ9Ik0xMjExLjk1MjEsLTE0OC4xMzY0QzEyOTAuMjAyNiwtMTMyLjM5MDEgMTM3OC41ODU1LC0xMTQuNjA0OCAxNDUxLjIzNzksLTk5Ljk4NSIvPgo8cG9seWdvbiBmaWxsPSIjMDAwMDAwIiBzdHJva2U9IiMwMDAwMDAiIHBvaW50cz0iMTQ1Mi4yNjkzLC0xMDMuMzQ3NyAxNDYxLjM4MjMsLTk3Ljk0MzYgMTQ1MC44ODg0LC05Ni40ODUyIDE0NTIuMjY5MywtMTAzLjM0NzciLz4KPC9hPgo8L2c+CjxnIGlkPSJhX2VkZ2U0JiM0NTtsYWJlbCI+PGEgeGxpbms6aHJlZj0iLi9lZGdlX2ZpbGVzL2VucXVldWUuaHRtbCIgeGxpbms6dGl0bGU9ImZpbmlzaGVkIGRvd25sb2FkaW5nXG5ibG9jayBkYXRhIj4KPHRleHQgdGV4dC1hbmNob3I9Im1pZGRsZSIgeD0iMTM0OC43NTEiIHk9Ii0xNTAuODAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj5maW5pc2hlZCBkb3dubG9hZGluZzwvdGV4dD4KPHRleHQgdGV4dC1hbmNob3I9Im1pZGRsZSIgeD0iMTM0OC43NTEiIHk9Ii0xMzUuODAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj5ibG9jayBkYXRhPC90ZXh0Pgo8L2E+CjwvZz4KPC9nPgo8IS0tIGFwcGx5JiM0NTsmZ3Q7c2VhcmNoIC0tPgo8ZyBpZD0iZWRnZTUiIGNsYXNzPSJlZGdlIj4KPHRpdGxlPmFwcGx5JiM0NTsmZ3Q7c2VhcmNoPC90aXRsZT4KPGcgaWQ9ImFfZWRnZTUiPjxhIHhsaW5rOmhyZWY9Ii4vZWRnZV9maWxlcy9hcHBsaWVkX2Jsb2Nrcy5odG1sIiB4bGluazp0aXRsZT0iXG4gJiMxNjA7c3VjY2Vzc2Z1bGx5IGFwcGxpZWRcbiAmIzE2MDthbGwgZW5xdWV1ZWQgYmxvY2tzIj4KPHBhdGggZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwMDAwIiBkPSJNMTQ0My41MTAxLC02Ni4xNjE5QzEzODQuMjIwNCwtNjQuODg0OSAxMzE2LjEyOCwtNjMuNjI5NSAxMjU0LjI1MSwtNjMuMDAzNiAxMDQwLjU1ODYsLTYwLjg0MiA5ODcuMTEyNSwtNjEuMDEzIDc3My40MTg0LC02My4wMDM2IDczMi41NzY5LC02My4zODQgNjg5LjI0MTQsLTYzLjk5NyA2NDcuMDc0MiwtNjQuNzA2MSIvPgo8cG9seWdvbiBmaWxsPSIjMDAwMDAwIiBzdHJva2U9IiMwMDAwMDAiIHBvaW50cz0iNjQ2Ljg5NjEsLTYxLjIwODUgNjM2Ljk1NzIsLTY0Ljg3ODQgNjQ3LjAxNTQsLTY4LjIwNzUgNjQ2Ljg5NjEsLTYxLjIwODUiLz4KPC9hPgo8L2c+CjxnIGlkPSJhX2VkZ2U1JiM0NTtsYWJlbCI+PGEgeGxpbms6aHJlZj0iLi9lZGdlX2ZpbGVzL2FwcGxpZWRfYmxvY2tzLmh0bWwiIHhsaW5rOnRpdGxlPSJcbiAmIzE2MDtzdWNjZXNzZnVsbHkgYXBwbGllZFxuICYjMTYwO2FsbCBlbnF1ZXVlZCBibG9ja3MiPgo8dGV4dCB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB4PSIxMDEzLjgzNDciIHk9Ii04MS44MDM2IiBmb250LWZhbWlseT0iVGltZXMsc2VyaWYiIGZvbnQtc2l6ZT0iMTQuMDAiIGZpbGw9IiMwMDAwMDAiPiAmIzE2MDtzdWNjZXNzZnVsbHkgYXBwbGllZDwvdGV4dD4KPHRleHQgdGV4dC1hbmNob3I9Im1pZGRsZSIgeD0iMTAxMy44MzQ3IiB5PSItNjYuODAzNiIgZm9udC1mYW1pbHk9IlRpbWVzLHNlcmlmIiBmb250LXNpemU9IjE0LjAwIiBmaWxsPSIjMDAwMDAwIj4gJiMxNjA7YWxsIGVucXVldWVkIGJsb2NrczwvdGV4dD4KPC9hPgo8L2c+CjwvZz4KPC9nPgo8L3N2Zz4K" alt></a></p>
 
       </div>
       

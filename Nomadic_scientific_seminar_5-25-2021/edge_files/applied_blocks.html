@@ -266,14 +266,18 @@ pre[data-line] .line-highlight[data-end]:after {
 <p>The bootstrapping node has applied all the blocks on their major branch and now goes back to requesting current heads from peers and handling messages</p>
 <h2 class="mume-header" id="apply-search">Apply -&gt; Search</h2>
 
-<pre data-role="codeBlock" data-info class="language-"><code>ExitBlockValidation == \E bn \in GOOD_BOOTSTRAPPING :
+<pre data-role="codeBlock" data-info class="language-"><code>ApplyToSearch == \E bn \in GOOD_BOOTSTRAPPING :
     /\ phase[bn] \in Phase_apply
+    /\ prevalidated_hds[bn] = {}
+    /\ prevalidated_ops[bn] = {}
     /\ header_pipe[bn] = &lt;&lt;&gt;&gt;
     /\ operation_pipe[bn] = &lt;&lt;&gt;&gt;
     /\ phase&apos; = [ phase EXCEPT ![bn] = search_phase ]
     /\ log_transition(bn, search_phase)
-    /\ UNCHANGED non_phase_vars
-</code></pre>
+    /\ UNCHANGED &lt;&lt;non_phase_vars, current_head&gt;&gt;
+</code></pre><p><a href="../phase_diagram_vertical.dot.svg">Back</a></p>
+<p><a href="../final.html">End</a></p>
+
       </div>
       
       

@@ -13,3 +13,7 @@ SearchToMajor == \E bn \in GOOD_BOOTSTRAPPING :
         /\ log_transition(bn, major_phase(1..l))
         /\ UNCHANGED non_phase_vars
 ```
+
+[Back](../phase_diagram_vertical.dot.svg)
+
+[End](../final.html)

@@ -1,5 +1,5 @@
 <!DOCTYPE html><html><head>
-      <title>init</title>
+      <title>final</title>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       
@@ -261,48 +261,32 @@ pre[data-line] .line-highlight[data-end]:after {
     </head>
     <body for="html-export">
       <div class="mume markdown-preview  ">
-      <h1 class="mume-header" id="initial-state">Initial state</h1>
+      <h1 class="mume-header" id="future-directions">Future directions</h1>
 
-<p><a href="../phase_diagram_vertical.dot.svg">Back</a></p>
-<p>The initial state is where it all begins</p>
-<pre data-role="codeBlock" data-info class="language-"><code>Init ==
-    \* messages
-    /\ b_messages        = [ n \in GOOD_BOOTSTRAPPING  |-&gt; {} ]
-    /\ n_messages        = [ n \in GOOD_NODES |-&gt; {} ]
-    
-    \* blacklist
-    /\ b_blacklist       = [ n \in GOOD_BOOTSTRAPPING  |-&gt; {} ]
-    /\ n_blacklist       = [ n \in GOOD_NODES |-&gt; {} ]
-    
-    \* bootstrapping
-    /\ phase             = [ n \in GOOD_BOOTSTRAPPING  |-&gt; init_phase ]
-    /\ connections       = [ n \in Bootstrapping_nodes |-&gt; {} ]
-    /\ current_head      = [ n \in GOOD_BOOTSTRAPPING  |-&gt; genesis ]
-    /\ fittest_head      = [ n \in GOOD_BOOTSTRAPPING  |-&gt; gen_header ]
-    /\ header_pipe       = [ n \in GOOD_BOOTSTRAPPING  |-&gt; &lt;&lt;&gt;&gt; ]
-    /\ operation_pipe    = [ n \in GOOD_BOOTSTRAPPING  |-&gt; &lt;&lt;&gt;&gt; ]
-    /\ validated_blocks  = [ n \in GOOD_BOOTSTRAPPING  |-&gt; {} ]
-    /\ prevalidated_hds  = [ n \in GOOD_BOOTSTRAPPING  |-&gt; {} ]
-    /\ prevalidated_ops  = [ n \in GOOD_BOOTSTRAPPING  |-&gt; {} ]
-    /\ sent_get_branch   = [ n \in GOOD_BOOTSTRAPPING  |-&gt; {} ]
-    /\ sent_get_headers  = [ n \in GOOD_BOOTSTRAPPING  |-&gt; [ m \in Nodes |-&gt; {} ] ]
-    /\ sent_get_ops      = [ n \in GOOD_BOOTSTRAPPING  |-&gt; [ m \in Nodes |-&gt; {} ] ]
-    /\ recv_branch       = [ n \in GOOD_BOOTSTRAPPING  |-&gt; [ m \in Nodes |-&gt; {} ] ]
-    /\ recv_header       = [ n \in GOOD_BOOTSTRAPPING  |-&gt; [ m \in Nodes |-&gt; {} ] ]
-    /\ recv_operation    = [ n \in GOOD_BOOTSTRAPPING  |-&gt; [ m \in Nodes |-&gt; {} ] ]
-    /\ phase_trace       = [ n \in GOOD_BOOTSTRAPPING  |-&gt; &lt;&lt;init_phase&gt;&gt; ]
+<ul>
+<li>
+<p>Safety</p>
+<ul>
+<li>prevention of eclipse attacks</li>
+</ul>
+</li>
+<li>
+<p>Performance</p>
+<ul>
+<li>include memory/space info in spec</li>
+<li>high and low priority queues</li>
+</ul>
+</li>
+</ul>
+<h1 class="mume-header" id="where-you-can-find-us-and-follow-our-work">Where you can find us and follow our work</h1>
 
-    \* node
-    /\ serving_headers   = [ n \in GOOD_NODES |-&gt; [ m \in Bootstrapping_nodes |-&gt; {} ] ]
-    /\ serving_ops       = [ p \in GOOD_NODES |-&gt; [ m \in Bootstrapping_nodes |-&gt; {} ] ]
-    /\ recv_get_branch   = [ n \in GOOD_NODES |-&gt; {} ]
-    /\ recv_get_headers  = [ n \in GOOD_NODES |-&gt; [ m \in Bootstrapping_nodes |-&gt; {} ] ]
-    /\ recv_get_ops      = [ n \in GOOD_NODES |-&gt; [ m \in Bootstrapping_nodes |-&gt; {} ] ]
-    /\ sent_branch       = [ n \in GOOD_NODES |-&gt; [ m \in Bootstrapping_nodes |-&gt; {} ] ]
-    /\ sent_headers      = [ n \in GOOD_NODES |-&gt; [ m \in Bootstrapping_nodes |-&gt; {} ] ]
-    /\ sent_ops          = [ n \in GOOD_NODES |-&gt; [ m \in Bootstrapping_nodes |-&gt; {} ] ]
-</code></pre><p><a href="../phase_diagram_vertical.dot.svg">Back</a></p>
-<p><a href="../final.html">End</a></p>
+<ul>
+<li><a href="https://github.com/tezedge/tezedge">TezEdge repo</a></li>
+<li><a href="https://github.com/tezedge/model-p2p">TLA+ repo</a></li>
+<li><a href="https://medium.com/tezedge">Viable Systems Medium</a></li>
+</ul>
+<h1 class="mume-header" id="thank-you-for-your-time-and-attention">Thank you for your time and attention!</h1>
+
 
       </div>
       

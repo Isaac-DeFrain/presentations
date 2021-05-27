@@ -263,6 +263,7 @@ pre[data-line] .line-highlight[data-end]:after {
       <div class="mume markdown-preview  ">
       <h1 class="mume-header" id="applying-blocks">Applying blocks</h1>
 
+<p><a href="../phase_diagram_vertical.dot.svg">Back</a></p>
 <p>The bootstrapping node has downloaded and prevalidated all necessary headers and operations. Now they will enqueue the data and form blocks.</p>
 <h2 class="mume-header" id="messages">Messages</h2>
 
@@ -271,36 +272,31 @@ pre[data-line] .line-highlight[data-end]:after {
 <li>Enqueuing headers</li>
 </ul>
 <pre data-role="codeBlock" data-info class="language-"><code>EnqueueHeader == \E bn \in GOOD_BOOTSTRAPPING :
-    LET hds == remaining_headers(bn) IN
-    /\ hds /= {}
-    /\ LET hd  == Min_level_set(hds) IN
-        /\ header_pipe&apos; = [ header_pipe EXCEPT ![bn] = SortSeq(Append(@, hd), min_level_cmp) ]
-        /\ UNCHANGED &lt;&lt;messages, blacklist, node_vars, b_non_pipe_vars, operation_pipe&gt;&gt;
+    LET pvhds == prevalidated_hds[bn] IN
+    /\ pvhds /= {}
+    /\ phase[bn] \in Phase_major
+    /\ LET hd == Max_level_set(pvhds) IN
+        /\ prevalidated_hds&apos; = [ prevalidated_hds EXCEPT ![bn] = @ \ {hd} ]
+        /\ header_pipe&apos;      = [ header_pipe      EXCEPT ![bn] = Cons(hd, @) ]
+        /\ UNCHANGED &lt;&lt;messages, blacklist, node_vars, b_non_hd_q_vars&gt;&gt;
 </code></pre><ul>
 <li>Enqueuing operations</li>
 </ul>
 <pre data-role="codeBlock" data-info class="language-"><code>EnqueueOperations == \E bn \in GOOD_BOOTSTRAPPING :
-    LET rem_ops == remaining_operations(bn)
-        h_pipe  == header_pipe[bn]
-    IN
-    /\ h_pipe /= &lt;&lt;&gt;&gt;
-    /\ rem_ops /= {}
-    /\ LET bh  == (Pick(rem_ops)).block_hash
-           ops == rem_ops_block_hash(bn, bh)
-           hd  == Head(h_pipe)
+    LET pvops == prevalidated_ops[bn] IN
+    /\ pvops /= {}
+    /\ phase[bn] \in Phase_major
+    /\ LET max  == Max_set({ op[1] : op \in pvops })
+           pair == Pick({ op \in pvops : op[1] = max })
+           ops  == pair[2]
        IN
-        /\ bh = hash(hd)
-        /\ num_fetched_ops_block_hash(bn, bh) = hd.ops_hash
-        /\ operation_pipe&apos; = [ operation_pipe EXCEPT ![bn] =
-            LET block_hash_at_index(i) == Pick({ op.block_hash : op \in @[i] }) IN
-            IF bh \in { block_hash_at_index(i) : i \in DOMAIN @ } THEN
-                LET i == { ii \in DOMAIN @ : bh \in block_hash_at_index(ii) } IN [ @ EXCEPT ![i] = @ \cup ops ]
-            ELSE Cons(ops, @) ]
-        /\ UNCHANGED &lt;&lt;messages, blacklist, node_vars, b_non_pipe_vars, header_pipe&gt;&gt;
+        /\ prevalidated_ops&apos; = [ prevalidated_ops EXCEPT ![bn] = @ \ {pair} ]
+        /\ operation_pipe&apos;   = [ operation_pipe   EXCEPT ![bn] = Cons(ops, @) ]
+        /\ UNCHANGED &lt;&lt;messages, blacklist, node_vars, b_non_op_q_vars&gt;&gt;
 </code></pre><ul>
 <li>Forming blocks</li>
 </ul>
-<pre data-role="codeBlock" data-info class="language-"><code>ValidateBlock == \E bn \in GOOD_BOOTSTRAPPING :
+<pre data-role="codeBlock" data-info class="language-"><code>ApplyBlock == \E bn \in GOOD_BOOTSTRAPPING :
     LET hds == header_pipe[bn]
         ops == operation_pipe[bn]
     IN
@@ -308,11 +304,16 @@ pre[data-line] .line-highlight[data-end]:after {
     /\ hds /= &lt;&lt;&gt;&gt;
     /\ ops /= &lt;&lt;&gt;&gt;
     /\ LET hd == Head(hds)
-            op == Head(ops)
+           op == Head(ops)
+           b  == block(hd, ops)
         IN
-        /\ op.block_hash = hash(hd)
-        /\ validate_block(bn, hd, ops, 0) \* TODO fix ctx hash
-</code></pre>
+        /\ header_pipe&apos;       = [ header_pipe      EXCEPT ![bn] = Tail(@) ]
+        /\ operation_pipe&apos;    = [ operation_pipe   EXCEPT ![bn] = Tail(@) ]
+        /\ validated_blocks&apos;  = [ validated_blocks EXCEPT ![bn] = @ \cup {b} ]
+        /\ UNCHANGED &lt;&lt;messages, blacklist, node_vars, b_non_pipe_vars&gt;&gt;
+</code></pre><p><a href="../phase_diagram_vertical.dot.svg">Back</a></p>
+<p><a href="../final.html">End</a></p>
+
       </div>
       
       
